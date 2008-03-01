@@ -7,35 +7,44 @@
 
 using namespace waffle;
 
+float Waffle::sampleRate;
+int Waffle::bufferSize;
+
 Waffle *Waffle::m_singleton = NULL;
 
 Waffle::Waffle(){
-	if(SDL_Init(SDL_INIT_AUDIO) < 0){
-		std::cerr << "SDL Error: " << SDL_GetError() << std::endl;
+	//connect to jack
+	jack_status_t jack_status;
+	if(!(m_jackClient = jack_client_open("waffle",JackNoStartServer,&jack_status))){
+		std::cerr << "Jack Error: Failed to connect client" << std::endl;
 		exit(1);
 	}
 	
-	//open audio device
-	SDL_AudioSpec wanted;
-	wanted.freq = (int)Waffle::SAMPLERATE;
-	wanted.format = AUDIO_U8;
-	wanted.channels = 1;
-	wanted.samples = Waffle::BUFFERSIZE;
-	wanted.callback = Waffle::audio_callback;
-	wanted.userdata = NULL;
-	
-	if(SDL_OpenAudio(&wanted, NULL) < 0){
-		std::cerr << "Couldn't Open Audio: " << SDL_GetError() << std::endl;
+	//register an output port
+	if(!(m_jackPort = jack_port_register(m_jackClient,"out",JACK_DEFAULT_AUDIO_TYPE,JackPortIsOutput,0))){
+		std::cerr << "Jack Error: Failed to register port" << std::endl;
 		exit(1);
 	}
+	
+	//register callbacks
+	jack_set_sample_rate_callback(m_jackClient, Waffle::samplerate_callback, NULL);
+	jack_set_buffer_size_callback(m_jackClient, Waffle::buffersize_callback, NULL);
+	jack_set_process_callback(m_jackClient, Waffle::process_callback, NULL);
+	
 	srand(time(NULL));
 	
+	Waffle::sampleRate = (float)jack_get_sample_rate(m_jackClient);
+	Waffle::bufferSize = jack_get_buffer_size(m_jackClient);
+	
 	m_norm = Waffle::NORM_CLIP;
-	m_lock = SDL_CreateMutex();
+	m_silent = true;
+	
+	jack_activate(m_jackClient);
 }
 
 Waffle::~Waffle(){
-
+	jack_port_unregister(m_jackClient, m_jackPort);
+	jack_client_close(m_jackClient);
 }
 
 Waffle *Waffle::get(){
@@ -46,25 +55,31 @@ Waffle *Waffle::get(){
 }
 
 int Waffle::addPatch(Module *m){
-	SDL_mutexP(m_lock);
 	m_channels.push_back(m);
-	SDL_mutexV(m_lock);
 	return m_channels.size()-1;
 }
 
 void Waffle::setPatch(int n, Module *m){
-	SDL_mutexP(m_lock);
 	if(n < m_channels.size() && n > -1)
 		m_channels[n] = m;
-	SDL_mutexV(m_lock);
 }
 
 float Waffle::midiToFreq(int note){
 	return 8.1758 * pow(2.0, (float)note/12.0);
 }
 
-void Waffle::audio_callback(void *udata, Uint8 *stream, int len){
-	Waffle::get()->run(udata,stream,len);
+//callbacks
+int Waffle::samplerate_callback(jack_nframes_t nframes, void *arg){
+	Waffle::sampleRate = (float)nframes;
+}
+
+int Waffle::buffersize_callback(jack_nframes_t nframes, void *arg){
+	Waffle::bufferSize = nframes;
+}
+
+int Waffle::process_callback(jack_nframes_t nframes, void *arg){
+  Waffle::get()->run(nframes);
+  return 0;
 }
 
 void Waffle::setNormMethod(int n){
@@ -76,45 +91,46 @@ void Waffle::setNormMethod(int n){
 }
 
 void Waffle::start(){
-	SDL_PauseAudio(0);
+	m_silent = false;
 }
 
 void Waffle::stop(){
-	SDL_PauseAudio(1);
+	m_silent = true;
 }
 
-void Waffle::run(void *udata, Uint8 *stream, int len){
-	SDL_mutexP(m_lock);
+void Waffle::run(jack_nframes_t nframes){
+	//get jack output port buffer
+	jack_default_audio_sample_t *out;
+    out = (jack_default_audio_sample_t *)jack_port_get_buffer(m_jackPort, nframes);
+    
 	int nchan = m_channels.size();
-	for(int b=0; b < len; ++b){
+	for(int b=0; b < nframes; ++b){
 		float mixdown = 0.0;
-		for(int i=0; i < m_channels.size(); ++i){
-			if(m_channels[i] != NULL)
-				mixdown += m_channels[i]->run();
+		if(!m_silent){
+			for(int i=0; i < m_channels.size(); ++i){
+				if(m_channels[i] != NULL)
+					mixdown += m_channels[i]->run();
+			}
+			
+			//normalization method
+			switch(m_norm){
+				case Waffle::NORM_CLIP: //clipping, doesn't normalize
+					break;
+				case Waffle::NORM_RELATIVE:
+					if(mixdown != 0)
+						mixdown /= ceil(fabs(mixdown)); // relative normalization
+					break;
+				case Waffle::NORM_ABSOLUTE:
+					if(nchan != 0)
+						mixdown /= nchan; //absolute normalization
+					break;
+			}
+			if(mixdown < -1.0f) mixdown = -1.0f;
+			if(mixdown > 1.0f) mixdown = 1.0f;
 		}
-		
-		//normalization method
-		switch(m_norm){
-			case Waffle::NORM_CLIP: //clipping, doesn't normalize
-				break;
-			case Waffle::NORM_RELATIVE:
-				if(mixdown != 0)
-					mixdown /= ceil(fabs(mixdown)); // relative normalization
-				break;
-			case Waffle::NORM_ABSOLUTE:
-				if(nchan != 0)
-					mixdown /= nchan; //absolute normalization
-				break;
-		}
-		//convert to 8-bit and clip
-		mixdown = floor(mixdown * 127) + 127;
-		if(mixdown < 0) mixdown = 0;
-		if(mixdown > 255) mixdown = 255;
-		
 		//put into the stream
-		stream[b] = (Uint8)mixdown;
+		out[b] = (jack_default_audio_sample_t)mixdown;
 	}
-	SDL_mutexV(m_lock);
 }
 
 
@@ -130,7 +146,7 @@ void GenSine::setFreq(Module *f){
 
 float GenSine::run(){
 	float data = sin(m_pos);
-	m_pos += 2 * 3.141592 * ((m_freq->run())/Waffle::SAMPLERATE);
+	m_pos += 2 * 3.141592 * ((m_freq->run())/Waffle::sampleRate);
 	return data;
 }
 
@@ -147,7 +163,7 @@ void GenTriangle::setFreq(Module *f){
 float GenTriangle::run(){
 	float cpos = fmod(m_pos, 2*3.141592)/(2 * 3.141592);
 	float data = (cpos < 0.5) ? cpos : (1 - cpos);
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::SAMPLERATE;
+	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
 	return (4*data)-1;
 }
 
@@ -163,7 +179,7 @@ void GenSawtooth::setFreq(Module *f){
 
 float GenSawtooth::run(){
 	float data = (2*fmod(m_pos, 2*3.141592)/(2 * 3.141592))-1;
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::SAMPLERATE;
+	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
@@ -179,7 +195,7 @@ void GenRevSawtooth::setFreq(Module *f){
 
 float GenRevSawtooth::run(){
 	float data = (2*(1 - fmod(m_pos, 2*3.141592)/(2 * 3.141592))-1);
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::SAMPLERATE;
+	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
@@ -201,7 +217,7 @@ void GenSquare::setThreshold(Module *t){
 float GenSquare::run(){
 	float cpos = fmod(m_pos, 2*3.141592)/(2 * 3.141592);
 	float data = (cpos < m_thresh->run()) ? -1 : 1;
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::SAMPLERATE;
+	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
@@ -241,9 +257,9 @@ m_thresh(thresh), m_attack(a), m_decay(d), m_sustain(s), m_release(r), m_a_c(0),
 {
 	m_children.push_back(i);
 	m_trig = t;
-	m_a_t = (int)(a * Waffle::SAMPLERATE);
-	m_d_t = (int)(d * Waffle::SAMPLERATE);
-	m_r_t = (int)(r * Waffle::SAMPLERATE);
+	m_a_t = (int)(a * Waffle::sampleRate);
+	m_d_t = (int)(d * Waffle::sampleRate);
+	m_r_t = (int)(r * Waffle::sampleRate);
 	m_state = Envelope::OFF;
 }
 
@@ -328,7 +344,7 @@ LowPass::LowPass(Module *f, Module *m){
 
 float LowPass::run(){
 	float rc = 1.0 / (2.0 * m_freq->run() * 3.141592);
-	float dt = 1.0 / Waffle::SAMPLERATE;
+	float dt = 1.0 / Waffle::sampleRate;
 	float alpha = dt / (rc + dt);
 	float v = m_children[0]->run();
 	float out =  (alpha * v) + ((1-alpha) * m_prev);
@@ -349,7 +365,7 @@ HighPass::HighPass(Module *f, Module *m){
 
 float HighPass::run(){
 	float rc = 1.0 / (2.0 * m_freq->run() * 3.141592);
-	float dt = 1.0 / Waffle::SAMPLERATE;
+	float dt = 1.0 / Waffle::sampleRate;
 	float alpha = dt / (rc + dt);
 	float v = m_children[0]->run();
 	float out =  (alpha * m_prev) + ((1-alpha) * v);
@@ -402,7 +418,7 @@ float Abs::run(){
 
 //signal delay filter
 Delay::Delay(float len, float thresh, Module *m, Module *t){
-	m_length = (int)(len*Waffle::SAMPLERATE);
+	m_length = (int)(len*Waffle::sampleRate);
 	m_queue = std::list<float>(m_length, 0.0);
 	m_children.push_back(m);
 	m_trig = t;
@@ -410,7 +426,7 @@ Delay::Delay(float len, float thresh, Module *m, Module *t){
 }
 
 void Delay::setLength(float len){
-	m_length = (int)(len*Waffle::SAMPLERATE);
+	m_length = (int)(len*Waffle::sampleRate);
 	m_queue = std::list<float>(m_length, 0.0);
 }
 

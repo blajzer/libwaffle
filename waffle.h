@@ -6,8 +6,10 @@
 
 #include <list>
 #include <vector>
-#include "SDL/SDL.h"
-#include "SDL/SDL_thread.h"
+#include <jack/jack.h>
+#include <jack/types.h>
+
+#define Uint8 char
 
 namespace waffle {
 
@@ -33,17 +35,21 @@ public:
 	void start();
 	void stop();
 	
-	void run(void *udata, Uint8 *stream, int len);
-	static void audio_callback(void *udata, Uint8 *stream, int len);
+	void run(jack_nframes_t nframes);
+	
+	//jack callbacks
+	static int samplerate_callback(jack_nframes_t nframes, void *arg);
+	static int buffersize_callback(jack_nframes_t nframes, void *arg);
+	static int process_callback(jack_nframes_t nframes, void *arg);
 	
 	~Waffle();
-	
-	static const float SAMPLERATE=22050.0;
-	static const int BUFFERSIZE=1024;
 	
 	static const int NORM_CLIP=0;
 	static const int NORM_ABSOLUTE=1;
 	static const int NORM_RELATIVE=2;
+	
+	static float sampleRate;
+	static int bufferSize;
 	
 private:
 	Waffle();
@@ -51,7 +57,10 @@ private:
 	std::vector<Module *> m_channels;
 	static Waffle *m_singleton;
 	int m_norm;
-	SDL_mutex *m_lock;
+	
+	jack_client_t *m_jackClient;
+	jack_port_t *m_jackPort;
+	bool m_silent;
 };
 
 
@@ -142,10 +151,10 @@ public:
 	Envelope(){};
 	Envelope(float thresh, float a, float d, float s, float r, Module *t, Module *i);
 	void setThresh(float t){m_thresh = t;};
-	void setAttack(float a){m_a_t = (int)(a * Waffle::SAMPLERATE);};
-	void setDecay(float d){m_d_t = (int)(d * Waffle::SAMPLERATE);};
+	void setAttack(float a){m_a_t = (int)(a * Waffle::sampleRate);};
+	void setDecay(float d){m_d_t = (int)(d * Waffle::sampleRate);};
 	void setSustain(float s){m_sustain = s;};
-	void setRelease(float r){m_r_t = (int)(r * Waffle::SAMPLERATE);};
+	void setRelease(float r){m_r_t = (int)(r * Waffle::sampleRate);};
 	virtual float run();
 
 private:

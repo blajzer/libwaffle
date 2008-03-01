@@ -12,7 +12,7 @@ int main(int argc, char *argv[]){
 	w->start();
 	sleep(1);
 	v->setValue(1);
-	sleep(2);
+	sleep(20);
 	v->setValue(0);
 	sleep(2);
 	return 0;
