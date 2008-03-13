@@ -20,6 +20,7 @@ public:
 	~Module(){};
 	
 	virtual float run()=0;
+	virtual bool isValid()=0;
 protected:
 
 };
@@ -69,6 +70,7 @@ class Filter : public Module {
 public:
 	Filter(){};
 	virtual float run() = 0;
+	virtual bool isValid() = 0;
 	virtual Module *getChild(int n);
 	virtual void setChild(int n, Module *m);
 	
@@ -81,6 +83,7 @@ public:
 	LowPass(){};
 	LowPass(Module *f, Module *m);
 	virtual float run();
+	virtual bool isValid();
 	void setFreq(Module *f);
 	
 private:
@@ -93,6 +96,7 @@ public:
 	HighPass(){};
 	HighPass(Module *f, Module *m);
 	virtual float run();
+	virtual bool isValid();
 	void setFreq(Module *f);
 	
 private:
@@ -106,6 +110,7 @@ public:
 	Delay(float len, float thresh, Module *m, Module *t);
 	
 	virtual float run();
+	virtual bool isValid();
 	void setLength(float len);
 	void setThreshold(float t){m_thresh = t;}
 	void setTrigger(Module *t){m_trig = t;}
@@ -123,6 +128,7 @@ public:
 	Mult(){};
 	Mult(Module *m1, Module *m2);
 	virtual float run();
+	virtual bool isValid();
 };
 
 class Add : public Filter {
@@ -130,6 +136,7 @@ public:
 	Add(){};
 	Add(Module *m1, Module *m2);
 	virtual float run();
+	virtual bool isValid();
 };
 
 class Sub : public Filter {
@@ -137,6 +144,7 @@ public:
 	Sub(){};
 	Sub(Module *m1, Module *m2);
 	virtual float run();
+	virtual bool isValid();
 };
 
 class Abs : public Filter {
@@ -144,6 +152,7 @@ public:
 	Abs(){};
 	Abs(Module *m);
 	virtual float run();
+	virtual bool isValid(){if(m_children[0] != NULL) return m_children[0]->isValid(); else return false;}
 };
 
 class Envelope : public Filter {
@@ -156,6 +165,7 @@ public:
 	void setSustain(float s){m_sustain = s;};
 	void setRelease(float r){m_r_t = (int)(r * Waffle::sampleRate);};
 	virtual float run();
+	virtual bool isValid(){if(m_trig != NULL) return m_trig->isValid(); else return false;}
 
 private:
 	Module *m_trig;
@@ -183,6 +193,7 @@ public:
 	void setFreq(Module *f);
 	
 	virtual float run();
+	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
 	float m_pos;
@@ -195,6 +206,7 @@ public:
 	void setFreq(Module *f);
 	
 	virtual float run();
+	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
 	float m_pos;
@@ -207,6 +219,7 @@ public:
 	void setFreq(Module *f);
 	
 	virtual float run();
+	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
 	float m_pos;
@@ -219,6 +232,7 @@ public:
 	void setFreq(Module *f);
 	
 	virtual float run();
+	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
 	float m_pos;
@@ -232,6 +246,7 @@ public:
 	void setThreshold(Module *t);
 	
 	virtual float run();
+	virtual bool isValid(){if(m_freq != NULL && m_thresh != NULL) return m_freq->isValid() && m_thresh->isValid(); else return false;}
 private:
 	Module *m_freq;
 	float m_pos;
@@ -243,6 +258,7 @@ public:
 	GenNoise(){};
 	
 	virtual float run();
+	virtual bool isValid(){ return true; }
 };
 
 class Value : public Module {
@@ -250,6 +266,7 @@ public:
 	Value(){};
 	Value(float v):m_value(v){};
 	virtual float run();
+	virtual bool isValid(){ return true; }
 	void setValue(float v);
 	
 private:

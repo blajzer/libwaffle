@@ -71,10 +71,12 @@ float Waffle::midiToFreq(int note){
 //callbacks
 int Waffle::samplerate_callback(jack_nframes_t nframes, void *arg){
 	Waffle::sampleRate = (float)nframes;
+	return 0;
 }
 
 int Waffle::buffersize_callback(jack_nframes_t nframes, void *arg){
 	Waffle::bufferSize = nframes;
+	return 0;
 }
 
 int Waffle::process_callback(jack_nframes_t nframes, void *arg){
@@ -352,6 +354,13 @@ float LowPass::run(){
 	return out;
 }
 
+bool LowPass::isValid(){
+	if(m_freq != NULL && m_children[0] != NULL)
+		return m_children[0]->isValid() && m_freq->isValid();
+	else
+		return false;
+}
+
 void LowPass::setFreq(Module *f){
 	m_freq = f;
 }
@@ -373,6 +382,13 @@ float HighPass::run(){
 	return out;
 }
 
+bool HighPass::isValid(){
+	if(m_freq != NULL && m_children[0] != NULL)
+		return m_children[0]->isValid() && m_freq->isValid();
+	else
+		return false;
+}
+
 void HighPass::setFreq(Module *f){
 	m_freq = f;
 }
@@ -387,6 +403,13 @@ float Mult::run(){
 	return m_children[0]->run() * m_children[1]->run();
 }
 
+bool Mult::isValid(){
+	if(m_children[0] != NULL && m_children[1] != NULL)
+		return m_children[0]->isValid() && m_children[1]->isValid();
+	else
+		return false;
+}
+
 //addition filter
 Add::Add(Module *m1, Module *m2){
 	m_children.push_back(m1);
@@ -397,6 +420,13 @@ float Add::run(){
 	return m_children[0]->run() + m_children[1]->run();
 }
 
+bool Add::isValid(){
+	if(m_children[0] != NULL && m_children[1] != NULL)
+		return m_children[0]->isValid() && m_children[1]->isValid();
+	else
+		return false;
+}
+
 //subtraction filter
 Sub::Sub(Module *m1, Module *m2){
 	m_children.push_back(m1);
@@ -405,6 +435,13 @@ Sub::Sub(Module *m1, Module *m2){
 
 float Sub::run(){
 	return m_children[0]->run() - m_children[1]->run();
+}
+
+bool Sub::isValid(){
+	if(m_children[0] != NULL && m_children[1] != NULL)
+		return m_children[0]->isValid() && m_children[1]->isValid();
+	else
+		return false;
 }
 
 //absolute value filter
@@ -445,3 +482,11 @@ float Delay::run(){
 		return m_children[0]->run();
 	}
 }
+
+bool Delay::isValid(){
+	if(m_children[0] != NULL && m_trig != NULL)
+		return m_children[0]->isValid() && m_trig->isValid();
+	else
+		return false;
+}
+
