@@ -1,5 +1,5 @@
 //Waffle,
-// a crappy 8-Bit modular Synth
+// a crappy modular Synth
 
 #ifndef _WAFFLE_H_
 #define _WAFFLE_H_
@@ -9,8 +9,6 @@
 #include <jack/jack.h>
 #include <jack/types.h>
 
-#define Uint8 char
-
 namespace waffle {
 
 //base module class
@@ -19,7 +17,7 @@ public:
 	Module(){};
 	~Module(){};
 	
-	virtual float run()=0;
+	virtual double run()=0;
 	virtual bool isValid()=0;
 protected:
 
@@ -28,11 +26,24 @@ protected:
 //the actual synth
 class Waffle {
 public:
+	enum NormalizationMethod {
+		NORM_CLIP=0,
+		NORM_ABSOLUTE,
+		NORM_RELATIVE,
+		NUM_NORMALIZATION_METHODS
+	};
+	
 	static Waffle *get();
-	static float midiToFreq(int note);
+	static double midiToFreq(int note);
+	
+	//patch management
 	int addPatch(Module *m);
 	void setPatch(int n, Module *m);
-	void setNormMethod(int n);
+	bool removePatch(Module *m);
+	bool removePatch(int n);
+	
+	void setNormMethod(NormalizationMethod n);
+	
 	void start();
 	void stop();
 	
@@ -45,17 +56,13 @@ public:
 	
 	~Waffle();
 	
-	static const int NORM_CLIP=0;
-	static const int NORM_ABSOLUTE=1;
-	static const int NORM_RELATIVE=2;
-	
 	static float sampleRate;
 	static int bufferSize;
 	
 private:
 	Waffle();
 	
-	std::vector<Module *> m_channels;
+	std::list<Module *> m_patches;
 	static Waffle *m_singleton;
 	int m_norm;
 	
@@ -69,7 +76,7 @@ private:
 class Filter : public Module {
 public:
 	Filter(){};
-	virtual float run() = 0;
+	virtual double run() = 0;
 	virtual bool isValid() = 0;
 	virtual Module *getChild(int n);
 	virtual void setChild(int n, Module *m);
@@ -82,52 +89,52 @@ class LowPass : public Filter {
 public:
 	LowPass(){};
 	LowPass(Module *f, Module *m);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
 	void setFreq(Module *f);
 	
 private:
 	Module *m_freq;
-	float m_prev;
+	double m_prev;
 };
 
 class HighPass : public Filter {
 public:
 	HighPass(){};
 	HighPass(Module *f, Module *m);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
 	void setFreq(Module *f);
 	
 private:
 	Module *m_freq;
-	float m_prev;
+	double m_prev;
 };
 
 class Delay : public Filter {
 public:
 	Delay(){};
-	Delay(float len, float thresh, Module *m, Module *t);
+	Delay(double len, double thresh, Module *m, Module *t);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
-	void setLength(float len);
-	void setThreshold(float t){m_thresh = t;}
+	void setLength(double len);
+	void setThreshold(double t){m_thresh = t;}
 	void setTrigger(Module *t){m_trig = t;}
 
 private:
-	float m_thresh;
+	double m_thresh;
 	int m_length;
 	Module *m_trig;
 	bool m_first;
-	std::list<float> m_queue;
+	std::list<double> m_queue;
 };
 
 class Mult : public Filter {
 public:
 	Mult(){};
 	Mult(Module *m1, Module *m2);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
 };
 
@@ -135,7 +142,7 @@ class Add : public Filter {
 public:
 	Add(){};
 	Add(Module *m1, Module *m2);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
 };
 
@@ -143,7 +150,7 @@ class Sub : public Filter {
 public:
 	Sub(){};
 	Sub(Module *m1, Module *m2);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid();
 };
 
@@ -151,31 +158,32 @@ class Abs : public Filter {
 public:
 	Abs(){};
 	Abs(Module *m);
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_children[0] != NULL) return m_children[0]->isValid(); else return false;}
 };
 
 class Envelope : public Filter {
 public:
 	Envelope(){};
-	Envelope(float thresh, float a, float d, float s, float r, Module *t, Module *i);
-	void setThresh(float t){m_thresh = t;};
-	void setAttack(float a){m_a_t = (int)(a * Waffle::sampleRate);};
-	void setDecay(float d){m_d_t = (int)(d * Waffle::sampleRate);};
-	void setSustain(float s){m_sustain = s;};
-	void setRelease(float r){m_r_t = (int)(r * Waffle::sampleRate);};
-	virtual float run();
+	Envelope(double thresh, double a, double d, double s, double r, Module *t, Module *i);
+	void setThresh(double t){m_thresh = t;};
+	void setAttack(double a){m_a_t = (int)(a * Waffle::sampleRate);};
+	void setDecay(double d){m_d_t = (int)(d * Waffle::sampleRate);};
+	void setSustain(double s){m_sustain = s;};
+	void setRelease(double r){m_r_t = (int)(r * Waffle::sampleRate);};
+	void retrigger();
+	virtual double run();
 	virtual bool isValid(){if(m_trig != NULL) return m_trig->isValid(); else return false;}
 
 private:
 	Module *m_trig;
 	int m_state;
-	float m_thresh;
-	float m_attack;
-	float m_decay;
-	float m_sustain;
-	float m_release;
-	float m_volume;
+	double m_thresh;
+	double m_attack;
+	double m_decay;
+	double m_sustain;
+	double m_release;
+	double m_volume;
 	int m_a_t; int m_a_c;
 	int m_d_t; int m_d_c;
 	int m_r_t; int m_r_c;
@@ -192,11 +200,11 @@ public:
 	GenSine(Module *f);
 	void setFreq(Module *f);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
-	float m_pos;
+	double m_pos;
 };
 
 class GenTriangle : public Module {
@@ -205,11 +213,11 @@ public:
 	GenTriangle(Module *f);
 	void setFreq(Module *f);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
-	float m_pos;
+	double m_pos;
 };
 
 class GenSawtooth : public Module {
@@ -218,11 +226,11 @@ public:
 	GenSawtooth(Module *f);
 	void setFreq(Module *f);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
-	float m_pos;
+	double m_pos;
 };
 
 class GenRevSawtooth : public Module {
@@ -231,11 +239,11 @@ public:
 	GenRevSawtooth(Module *f);
 	void setFreq(Module *f);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
 private:
 	Module *m_freq;
-	float m_pos;
+	double m_pos;
 };
 
 class GenSquare : public Module {
@@ -245,11 +253,11 @@ public:
 	void setFreq(Module *f);
 	void setThreshold(Module *t);
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){if(m_freq != NULL && m_thresh != NULL) return m_freq->isValid() && m_thresh->isValid(); else return false;}
 private:
 	Module *m_freq;
-	float m_pos;
+	double m_pos;
 	Module *m_thresh;
 };
 
@@ -257,20 +265,20 @@ class GenNoise : public Module {
 public:
 	GenNoise(){};
 	
-	virtual float run();
+	virtual double run();
 	virtual bool isValid(){ return true; }
 };
 
 class Value : public Module {
 public:
 	Value(){};
-	Value(float v):m_value(v){};
-	virtual float run();
+	Value(double v):m_value(v){};
+	virtual double run();
 	virtual bool isValid(){ return true; }
-	void setValue(float v);
+	void setValue(double v);
 	
 private:
-	float m_value;
+	double m_value;
 };
 
 }

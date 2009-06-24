@@ -1,4 +1,6 @@
 #include "waffle.h"
+
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <cstdlib>
@@ -11,6 +13,9 @@ float Waffle::sampleRate;
 int Waffle::bufferSize;
 
 Waffle *Waffle::m_singleton = NULL;
+
+static const double PI = 3.141592653589732384626;
+static const double TWO_PI = 2.0 * PI;
 
 Waffle::Waffle(){
 	//connect to jack
@@ -55,22 +60,54 @@ Waffle *Waffle::get(){
 }
 
 int Waffle::addPatch(Module *m){
-	m_channels.push_back(m);
-	return m_channels.size()-1;
+	m_patches.push_back(m);
+	return m_patches.size()-1;
 }
 
 void Waffle::setPatch(int n, Module *m){
-	if(n < m_channels.size() && n > -1)
-		m_channels[n] = m;
+	if(n < m_patches.size() && n > -1){
+		std::list<Module *>::iterator it = m_patches.begin();
+		while(n > 0){
+			++it;
+			--n;
+		}
+			
+		(*it) = m;
+	}
 }
 
-float Waffle::midiToFreq(int note){
-	return 8.1758 * pow(2.0, (float)note/12.0);
+bool Waffle::removePatch(Module *m){
+	std::list<Module *>::iterator it = find(m_patches.begin(), m_patches.end(), m);
+	if(it != m_patches.end()){
+		m_patches.erase(it);
+		return true;
+	}else{
+		return false;
+	}
+}
+
+bool Waffle::removePatch(int n){
+	if(n < m_patches.size() && n > -1){
+		std::list<Module *>::iterator it = m_patches.begin();
+		while(n > 0){
+			++it;
+			--n;
+		}
+		m_patches.erase(it);
+		
+		return true;		
+	}else{
+		return false;
+	}
+}
+
+double Waffle::midiToFreq(int note){
+	return 8.1758 * pow(2.0, (double)note/12.0);
 }
 
 //callbacks
 int Waffle::samplerate_callback(jack_nframes_t nframes, void *arg){
-	Waffle::sampleRate = (float)nframes;
+	Waffle::sampleRate = (double)nframes;
 	return 0;
 }
 
@@ -84,8 +121,8 @@ int Waffle::process_callback(jack_nframes_t nframes, void *arg){
   return 0;
 }
 
-void Waffle::setNormMethod(int n){
-	if(n < 0 || n > 2){
+void Waffle::setNormMethod(NormalizationMethod n){
+	if(n < NORM_CLIP || n > NUM_NORMALIZATION_METHODS){
 		std::cerr << "ERROR: Invalid normalization method" << std::endl;
 		exit(1);
 	}
@@ -105,13 +142,12 @@ void Waffle::run(jack_nframes_t nframes){
 	jack_default_audio_sample_t *out;
     out = (jack_default_audio_sample_t *)jack_port_get_buffer(m_jackPort, nframes);
     
-	int nchan = m_channels.size();
+	int nchan = m_patches.size();
 	for(int b=0; b < nframes; ++b){
-		float mixdown = 0.0;
+		double mixdown = 0.0;
 		if(!m_silent){
-			for(int i=0; i < m_channels.size(); ++i){
-				if(m_channels[i] != NULL)
-					mixdown += m_channels[i]->run();
+			for(std::list<Module *>::iterator i=m_patches.begin(); i != m_patches.end(); ++i){
+				mixdown += (*i)->run();
 			}
 			
 			//normalization method
@@ -125,6 +161,8 @@ void Waffle::run(jack_nframes_t nframes){
 				case Waffle::NORM_ABSOLUTE:
 					if(nchan != 0)
 						mixdown /= nchan; //absolute normalization
+					break;
+				default:
 					break;
 			}
 			if(mixdown < -1.0f) mixdown = -1.0f;
@@ -146,9 +184,10 @@ void GenSine::setFreq(Module *f){
 	m_pos = 0.0;
 }
 
-float GenSine::run(){
-	float data = sin(m_pos);
-	m_pos += 2 * 3.141592 * ((m_freq->run())/Waffle::sampleRate);
+double GenSine::run(){
+	double data = sin(m_pos);
+	m_pos += TWO_PI * ((m_freq->run())/Waffle::sampleRate);
+
 	return data;
 }
 
@@ -162,10 +201,11 @@ void GenTriangle::setFreq(Module *f){
 	m_pos = 0.0;
 }
 
-float GenTriangle::run(){
-	float cpos = fmod(m_pos, 2*3.141592)/(2 * 3.141592);
-	float data = (cpos < 0.5) ? cpos : (1 - cpos);
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
+double GenTriangle::run(){
+	double cpos = fmod(m_pos, TWO_PI)/(TWO_PI);
+	double data = (cpos < 0.5) ? cpos : (1 - cpos);
+	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
+	m_pos = fmod(m_pos, TWO_PI);
 	return (4*data)-1;
 }
 
@@ -179,9 +219,9 @@ void GenSawtooth::setFreq(Module *f){
 	m_pos = 0.0;
 }
 
-float GenSawtooth::run(){
-	float data = (2*fmod(m_pos, 2*3.141592)/(2 * 3.141592))-1;
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
+double GenSawtooth::run(){
+	double data = (2*fmod(m_pos, TWO_PI)/(TWO_PI))-1;
+	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
@@ -195,9 +235,9 @@ void GenRevSawtooth::setFreq(Module *f){
 	m_pos = 0.0;
 }
 
-float GenRevSawtooth::run(){
-	float data = (2*(1 - fmod(m_pos, 2*3.141592)/(2 * 3.141592))-1);
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
+double GenRevSawtooth::run(){
+	double data = (2*(1 - fmod(m_pos, TWO_PI)/(TWO_PI))-1);
+	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
@@ -216,24 +256,24 @@ void GenSquare::setThreshold(Module *t){
 	m_thresh = t;
 }
 
-float GenSquare::run(){
-	float cpos = fmod(m_pos, 2*3.141592)/(2 * 3.141592);
-	float data = (cpos < m_thresh->run()) ? -1 : 1;
-	m_pos += 2 * 3.141592 * (m_freq->run())/Waffle::sampleRate;
+double GenSquare::run(){
+	double cpos = fmod(m_pos, TWO_PI)/(TWO_PI);
+	double data = (cpos < m_thresh->run()) ? -1 : 1;
+	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
 //Noise Generator
-float GenNoise::run(){
-	return (((float)rand() - ((float)RAND_MAX/2.0)) / ((float)RAND_MAX/2.0)); 
+double GenNoise::run(){
+	return (((double)rand() - ((double)RAND_MAX/2.0)) / ((double)RAND_MAX/2.0)); 
 }
 
 //value Generator
-float Value::run(){
+double Value::run(){
 	return m_value;
 }
 
-void Value::setValue(float v){
+void Value::setValue(double v){
 	m_value = v;
 }
 
@@ -254,7 +294,7 @@ void Filter::setChild(int n, Module *m){
 }
 
 //obligatory ADSR envelope
-Envelope::Envelope(float thresh, float a, float d, float s, float r, Module *t, Module *i):
+Envelope::Envelope(double thresh, double a, double d, double s, double r, Module *t, Module *i):
 m_thresh(thresh), m_attack(a), m_decay(d), m_sustain(s), m_release(r), m_a_c(0), m_d_c(0), m_r_c(0), m_volume(0.0)
 {
 	m_children.push_back(i);
@@ -266,9 +306,9 @@ m_thresh(thresh), m_attack(a), m_decay(d), m_sustain(s), m_release(r), m_a_c(0),
 }
 
 
-float Envelope::run(){
-	float data = m_children[0]->run();
-	float trigger = m_trig->run();
+double Envelope::run(){
+	double data = m_children[0]->run();
+	double trigger = m_trig->run();
 
 	switch(m_state){
 		case Envelope::OFF:
@@ -291,7 +331,7 @@ float Envelope::run(){
 					m_state = Envelope::RELEASE;
 					m_r_c = 0;
 				}
-				m_volume = ((float)m_a_c/(float)m_a_t);				
+				m_volume = ((double)m_a_c/(double)m_a_t);				
 				return data * m_volume;
 			}
 			break;
@@ -306,7 +346,7 @@ float Envelope::run(){
 					m_state = Envelope::RELEASE;
 					m_r_c = 0;
 				}
-				m_volume = ((1.0 - m_sustain) - ((1.0 - m_sustain) * ((float)m_d_c/(float)m_d_t)) + m_sustain);
+				m_volume = ((1.0 - m_sustain) - ((1.0 - m_sustain) * ((double)m_d_c/(double)m_d_t)) + m_sustain);
 				return data * m_volume;
 			}
 			break;
@@ -331,10 +371,16 @@ float Envelope::run(){
 					m_a_c = 0;
 					return 0.0;
 				}
-				return data * ((1 - (float)m_r_c/(float)m_r_t) * m_volume);
+				return data * ((1 - (double)m_r_c/(double)m_r_t) * m_volume);
 			}
 			break;
 	};
+}
+
+//Envelope retrigger
+void Envelope::retrigger(){
+	m_state = Envelope::ATTACK;
+	m_a_c = 0;
 }
 
 //lowpass filter
@@ -344,12 +390,12 @@ LowPass::LowPass(Module *f, Module *m){
 	m_prev = 0.0;
 }
 
-float LowPass::run(){
-	float rc = 1.0 / (2.0 * m_freq->run() * 3.141592);
-	float dt = 1.0 / Waffle::sampleRate;
-	float alpha = dt / (rc + dt);
-	float v = m_children[0]->run();
-	float out =  (alpha * v) + ((1-alpha) * m_prev);
+double LowPass::run(){
+	double rc = 1.0 / (m_freq->run() * TWO_PI);
+	double dt = 1.0 / Waffle::sampleRate;
+	double alpha = dt / (rc + dt);
+	double v = m_children[0]->run();
+	double out =  (alpha * v) + ((1-alpha) * m_prev);
 	m_prev = out;
 	return out;
 }
@@ -372,12 +418,12 @@ HighPass::HighPass(Module *f, Module *m){
 	m_prev = 0.0;
 }
 
-float HighPass::run(){
-	float rc = 1.0 / (2.0 * m_freq->run() * 3.141592);
-	float dt = 1.0 / Waffle::sampleRate;
-	float alpha = dt / (rc + dt);
-	float v = m_children[0]->run();
-	float out =  (alpha * m_prev) + ((1-alpha) * v);
+double HighPass::run(){
+	double rc = 1.0 / (m_freq->run() * TWO_PI);
+	double dt = 1.0 / Waffle::sampleRate;
+	double alpha = dt / (rc + dt);
+	double v = m_children[0]->run();
+	double out =  (alpha * m_prev) + ((1-alpha) * v);
 	m_prev = out;
 	return out;
 }
@@ -399,7 +445,7 @@ Mult::Mult(Module *m1, Module *m2){
 	m_children.push_back(m2);
 }
 
-float Mult::run(){
+double Mult::run(){
 	return m_children[0]->run() * m_children[1]->run();
 }
 
@@ -416,7 +462,7 @@ Add::Add(Module *m1, Module *m2){
 	m_children.push_back(m2);
 }
 
-float Add::run(){
+double Add::run(){
 	return m_children[0]->run() + m_children[1]->run();
 }
 
@@ -433,7 +479,7 @@ Sub::Sub(Module *m1, Module *m2){
 	m_children.push_back(m2);
 }
 
-float Sub::run(){
+double Sub::run(){
 	return m_children[0]->run() - m_children[1]->run();
 }
 
@@ -449,31 +495,31 @@ Abs::Abs(Module *m){
 	m_children.push_back(m);
 }
 
-float Abs::run(){
+double Abs::run(){
 	return fabs(m_children[0]->run());
 }
 
 //signal delay filter
-Delay::Delay(float len, float thresh, Module *m, Module *t){
+Delay::Delay(double len, double thresh, Module *m, Module *t){
 	m_length = (int)(len*Waffle::sampleRate);
-	m_queue = std::list<float>(m_length, 0.0);
+	m_queue = std::list<double>(m_length, 0.0);
 	m_children.push_back(m);
 	m_trig = t;
 	m_thresh = thresh;
 }
 
-void Delay::setLength(float len){
+void Delay::setLength(double len){
 	m_length = (int)(len*Waffle::sampleRate);
-	m_queue = std::list<float>(m_length, 0.0);
+	m_queue = std::list<double>(m_length, 0.0);
 }
 
-float Delay::run(){
+double Delay::run(){
 	if(m_trig->run() > m_thresh){
 		if(m_first == true){
-			m_queue = std::list<float>(m_length, 0.0);
+			m_queue = std::list<double>(m_length, 0.0);
 			m_first = false;
 		}
-		float data = m_queue.front();
+		double data = m_queue.front();
 		m_queue.pop_front();
 		m_queue.push_back(m_children[0]->run());
 		return data;

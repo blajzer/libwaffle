@@ -1,4 +1,5 @@
 #include "waffle.h"
+#include <unistd.h>
 
 using namespace waffle;
 
