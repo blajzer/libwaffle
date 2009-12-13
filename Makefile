@@ -1,8 +1,15 @@
 all: waffle
 
-waffle: waffle.h waffle.cpp
-	g++ -fPIC -c waffle.cpp -O3
-	g++ -O3 -shared -o libwaffle.so waffle.o -lpthread -ljack
+OBJS=waffle.o generators.o filters.o
+
+waffle: ${OBJS}
+	g++ -O3 -shared -o libwaffle.so ${OBJS} -lpthread -ljack
 
 example: waffle
-	g++ lw-example.cpp -o lw-example -L. -lwaffle -pthread -ljack
+	g++ lw-example.cpp -o lw-example -L. -lwaffle -pthread -ljack -lm
+	
+%.o : %.cpp
+	g++ -fPIC -c $< -o $@ -O3
+	
+clean:
+	rm -rf *.o *.so
