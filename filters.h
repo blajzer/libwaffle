@@ -34,9 +34,9 @@ namespace waffle {
 
 class Filter : public Module {
 public:
-	Filter(){};
+	Filter(){}
 	virtual double run() = 0;
-	virtual bool isValid() = 0;
+	virtual bool isValid();
 	virtual Module *getChild(int n);
 	virtual void setChild(int n, Module *m);
 	
@@ -46,7 +46,7 @@ protected:
 
 class LowPass : public Filter {
 public:
-	LowPass(){};
+	LowPass():m_freq(NULL){}
 	LowPass(Module *f, Module *m);
 	virtual double run();
 	virtual bool isValid();
@@ -59,7 +59,7 @@ private:
 
 class HighPass : public Filter {
 public:
-	HighPass(){};
+	HighPass():m_freq(NULL){}
 	HighPass(Module *f, Module *m);
 	virtual double run();
 	virtual bool isValid();
@@ -72,7 +72,7 @@ private:
 
 class Delay : public Filter {
 public:
-	Delay(){};
+	Delay():m_trig(NULL){}
 	Delay(double len, double thresh, Module *m, Module *t);
 	
 	virtual double run();
@@ -91,39 +91,35 @@ private:
 
 class Mult : public Filter {
 public:
-	Mult(){};
+	Mult(){}
 	Mult(Module *m1, Module *m2);
 	virtual double run();
-	virtual bool isValid();
 };
 
 class Add : public Filter {
 public:
-	Add(){};
+	Add(){}
 	Add(Module *m1, Module *m2);
 	virtual double run();
-	virtual bool isValid();
 };
 
 class Sub : public Filter {
 public:
-	Sub(){};
+	Sub(){}
 	Sub(Module *m1, Module *m2);
 	virtual double run();
-	virtual bool isValid();
 };
 
 class Abs : public Filter {
 public:
-	Abs(){};
+	Abs(){}
 	Abs(Module *m);
 	virtual double run();
-	virtual bool isValid(){if(m_children[0] != NULL) return m_children[0]->isValid(); else return false;}
 };
 
 class Envelope : public Filter {
 public:
-	Envelope(){};
+	Envelope():m_trig(NULL){}
 	Envelope(double thresh, double a, double d, double s, double r, Module *t, Module *i);
 	void setThresh(double t);
 	void setAttack(double a);
@@ -132,7 +128,7 @@ public:
 	void setRelease(double r);
 	void retrigger();
 	virtual double run();
-	virtual bool isValid(){if(m_trig != NULL) return m_trig->isValid(); else return false;}
+	virtual bool isValid(){if(Filter::isValid() && m_trig != NULL) return m_trig->isValid(); else return false;}
 
 private:
 	Module *m_trig;

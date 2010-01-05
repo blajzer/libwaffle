@@ -31,7 +31,7 @@ namespace waffle {
 class Module {
 public:
 	Module(){};
-	~Module(){};
+	virtual ~Module(){};
 
 	virtual double run()=0;
 	virtual bool isValid()=0;

@@ -1,15 +1,18 @@
+CXXFLAGS=-O3 -march=native
+LDFLAGS=-pthread -ljack -lm
+
 all: waffle example
 
 OBJS=waffle.o generators.o filters.o
 
 waffle: ${OBJS}
-	g++ -O3 -shared -o libwaffle.so ${OBJS} -lpthread -ljack -march=native
+	g++ -shared -o libwaffle.so ${OBJS} ${CXXFLAGS} ${LDFLAGS}
 
 example: waffle
-	g++ lw-example.cpp -o lw-example -L. -lwaffle -pthread -ljack -lm
+	g++ lw-example.cpp -o lw-example -L. -lwaffle ${CXXFLAGS} ${LDFLAGS}
 	
 %.o : %.cpp
-	g++ -fPIC -c $< -o $@ -O3 -march=native
+	g++ -fPIC -c $< -o $@ ${CXXFLAGS}
 	
 clean:
 	rm -rf *.o *.so lw-example

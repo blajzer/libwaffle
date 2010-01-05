@@ -30,6 +30,16 @@ using namespace waffle;
 static const double PI = 3.141592653589732384626;
 static const double TWO_PI = 2.0 * PI;
 
+//filter isValid
+bool Filter::isValid() {
+	for(int i; i < m_children.size(); ++i) {
+		if(!m_children[i]->isValid())
+			return false;
+	}
+
+	return true;
+}
+
 //filter get child
 Module *Filter::getChild(int n){
 	if(n < m_children.size() && n > -1){
@@ -173,8 +183,8 @@ double LowPass::run(){
 }
 
 bool LowPass::isValid(){
-	if(m_freq != NULL && m_children[0] != NULL)
-		return m_children[0]->isValid() && m_freq->isValid();
+	if(Filter::isValid() && m_freq != NULL)
+		return m_freq->isValid();
 	else
 		return false;
 }
@@ -201,8 +211,8 @@ double HighPass::run(){
 }
 
 bool HighPass::isValid(){
-	if(m_freq != NULL && m_children[0] != NULL)
-		return m_children[0]->isValid() && m_freq->isValid();
+	if(Filter::isValid() && m_freq != NULL)
+		return m_freq->isValid();
 	else
 		return false;
 }
@@ -221,13 +231,6 @@ double Mult::run(){
 	return m_children[0]->run() * m_children[1]->run();
 }
 
-bool Mult::isValid(){
-	if(m_children[0] != NULL && m_children[1] != NULL)
-		return m_children[0]->isValid() && m_children[1]->isValid();
-	else
-		return false;
-}
-
 //addition filter
 Add::Add(Module *m1, Module *m2){
 	m_children.push_back(m1);
@@ -238,13 +241,6 @@ double Add::run(){
 	return m_children[0]->run() + m_children[1]->run();
 }
 
-bool Add::isValid(){
-	if(m_children[0] != NULL && m_children[1] != NULL)
-		return m_children[0]->isValid() && m_children[1]->isValid();
-	else
-		return false;
-}
-
 //subtraction filter
 Sub::Sub(Module *m1, Module *m2){
 	m_children.push_back(m1);
@@ -253,13 +249,6 @@ Sub::Sub(Module *m1, Module *m2){
 
 double Sub::run(){
 	return m_children[0]->run() - m_children[1]->run();
-}
-
-bool Sub::isValid(){
-	if(m_children[0] != NULL && m_children[1] != NULL)
-		return m_children[0]->isValid() && m_children[1]->isValid();
-	else
-		return false;
 }
 
 //absolute value filter
@@ -302,8 +291,8 @@ double Delay::run(){
 }
 
 bool Delay::isValid(){
-	if(m_children[0] != NULL && m_trig != NULL)
-		return m_children[0]->isValid() && m_trig->isValid();
+	if(Filter::isValid() && m_trig != NULL)
+		return m_trig->isValid();
 	else
 		return false;
 }

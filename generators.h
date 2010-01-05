@@ -29,90 +29,82 @@ THE SOFTWARE.
 
 namespace waffle {
 
-class GenSine : public Module {
+class WaveformGenerator : public Module {
 public:
-	GenSine(){};
-	GenSine(Module *f);
 	void setFreq(Module *f);
-	
-	virtual double run();
-	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
-private:
+	void setPhase(Module *p);
+	virtual bool isValid(){if(m_freq != NULL && m_phase != NULL) return m_freq->isValid() && m_phase->isValid(); else return false;}
+
+protected:
+	WaveformGenerator() : m_freq(NULL), m_phase(NULL), m_pos(0.0){} //should never be explicitly instantiated
+	WaveformGenerator(Module *f, Module *p) : m_freq(f), m_phase(p), m_pos(0.0){} //should never be explicitly instantiated
+
 	Module *m_freq;
+	Module *m_phase;
 	double m_pos;
 };
 
-class GenTriangle : public Module {
+class GenSine : public WaveformGenerator {
 public:
-	GenTriangle(){};
-	GenTriangle(Module *f);
-	void setFreq(Module *f);
+	GenSine(Module *f, Module *p);
 	
 	virtual double run();
-	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
-private:
-	Module *m_freq;
-	double m_pos;
 };
 
-class GenSawtooth : public Module {
+class GenTriangle : public WaveformGenerator {
 public:
-	GenSawtooth(){};
-	GenSawtooth(Module *f);
-	void setFreq(Module *f);
+	GenTriangle(Module *f, Module *p);
 	
 	virtual double run();
-	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
-private:
-	Module *m_freq;
-	double m_pos;
 };
 
-class GenRevSawtooth : public Module {
+class GenSawtooth : public WaveformGenerator {
 public:
-	GenRevSawtooth(){};
-	GenRevSawtooth(Module *f);
-	void setFreq(Module *f);
+	GenSawtooth(Module *f, Module *p);
 	
 	virtual double run();
-	virtual bool isValid(){if(m_freq != NULL) return m_freq->isValid(); else return false;}
-private:
-	Module *m_freq;
-	double m_pos;
 };
 
-class GenSquare : public Module {
+class GenRevSawtooth : public WaveformGenerator {
 public:
-	GenSquare(){};
-	GenSquare(Module *f, Module *t);
-	void setFreq(Module *f);
+	GenRevSawtooth(Module *f, Module *p);
+	
+	virtual double run();
+};
+
+class GenSquare : public WaveformGenerator {
+public:
+	GenSquare() : WaveformGenerator(), m_thresh(NULL) {}
+	GenSquare(Module *f, Module *p, Module *t);
 	void setThreshold(Module *t);
 	
 	virtual double run();
-	virtual bool isValid(){if(m_freq != NULL && m_thresh != NULL) return m_freq->isValid() && m_thresh->isValid(); else return false;}
-private:
-	Module *m_freq;
-	double m_pos;
+	virtual bool isValid() {
+		if(WaveformGenerator::isValid() && m_thresh != NULL)
+			return m_thresh->isValid();
+		else
+			return false;
+	}
+
+protected:
 	Module *m_thresh;
 };
 
 class GenNoise : public Module {
-public:
-	GenNoise(){};
-	
+public:	
 	virtual double run();
 	virtual bool isValid(){ return true; }
 };
 
 class Value : public Module {
 public:
-	Value(){};
-	Value(double v):m_value(v){};
+	Value():m_value(0.0){}
+	Value(double v):m_value(v){}
 	virtual double run();
 	virtual bool isValid(){ return true; }
 	void setValue(double v);
 	
-private:
+protected:
 	double m_value;
 };
 

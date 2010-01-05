@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include <list>
 #include <vector>
+#include <utility>
 #include <jack/jack.h>
 #include <jack/types.h>
 
@@ -55,6 +56,7 @@ public:
 	void setPatch(int n, Module *m);
 	bool removePatch(Module *m);
 	bool removePatch(int n);
+	std::list< std::pair<Module *, bool> > validatePatches();
 	
 	void setNormMethod(NormalizationMethod n);
 	

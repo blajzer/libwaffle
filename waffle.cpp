@@ -119,6 +119,21 @@ bool Waffle::removePatch(int n){
 	}
 }
 
+
+std::list< std::pair<Module *, bool> > Waffle::validatePatches() {
+	std::list< std::pair<Module *, bool> > results;
+	
+	std::list<Module *>::iterator it = m_patches.begin();
+	for( ; it != m_patches.end(); ++it) {
+		if( (*it)->isValid() )
+			results.push_back( std::make_pair(*it, true) );
+		else
+			results.push_back( std::make_pair(*it, true) );
+	}
+
+	return results;
+}
+
 double Waffle::midiToFreq(int note){
 	return 8.1758 * pow(2.0, (double)note/12.0);
 }

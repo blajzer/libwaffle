@@ -30,35 +30,29 @@ using namespace waffle;
 static const double PI = 3.141592653589732384626;
 static const double TWO_PI = 2.0 * PI;
 
-//Sine Wave Generator
-GenSine::GenSine(Module *f):m_pos(0.0){
-	m_freq = f;
-}
-
-void GenSine::setFreq(Module *f){
+//Base WaveformGenerator
+void WaveformGenerator::setFreq(Module *f){
 	m_freq = f;
 	m_pos = 0.0;
 }
 
+//Sine Wave Generator
+GenSine::GenSine(Module *f, Module *p) : WaveformGenerator(f, p) {
+}
+
 double GenSine::run(){
-	double data = sin(m_pos);
+	double data = sin(m_pos + m_phase->run());
 	m_pos += TWO_PI * ((m_freq->run())/Waffle::sampleRate);
 
 	return data;
 }
 
 //Triangle Wave Generator
-GenTriangle::GenTriangle(Module *f):m_pos(0.0){
-	m_freq = f;
-}
-
-void GenTriangle::setFreq(Module *f){
-	m_freq = f;
-	m_pos = 0.0;
+GenTriangle::GenTriangle(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenTriangle::run(){
-	double cpos = fmod(m_pos, TWO_PI)/(TWO_PI);
+	double cpos = fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI);
 	double data = (cpos < 0.5) ? cpos : (1 - cpos);
 	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
@@ -66,46 +60,28 @@ double GenTriangle::run(){
 }
 
 //Sawtooth Wave Generator
-GenSawtooth::GenSawtooth(Module *f):m_pos(0.0){
-	m_freq = f;
-}
-
-void GenSawtooth::setFreq(Module *f){
-	m_freq = f;
-	m_pos = 0.0;
+GenSawtooth::GenSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenSawtooth::run(){
-	double data = (2*fmod(m_pos, TWO_PI)/(TWO_PI))-1;
+	double data = (2*fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI))-1;
 	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
 //Sawtooth Wave Generator
-GenRevSawtooth::GenRevSawtooth(Module *f):m_pos(0.0){
-	m_freq = f;
-}
-
-void GenRevSawtooth::setFreq(Module *f){
-	m_freq = f;
-	m_pos = 0.0;
+GenRevSawtooth::GenRevSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenRevSawtooth::run(){
-	double data = (2*(1 - fmod(m_pos, TWO_PI)/(TWO_PI))-1);
+	double data = (2*(1 - fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI))-1);
 	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
 }
 
 //Square Wave Generator
-GenSquare::GenSquare(Module *f, Module *t):m_pos(0.0){
+GenSquare::GenSquare(Module *f, Module *p, Module *t) : WaveformGenerator(f, p) {
 	m_thresh = t;
-	m_freq = f;
-}
-
-void GenSquare::setFreq(Module *f){
-	m_freq = f;
-	m_pos = 0.0;
 }
 
 void GenSquare::setThreshold(Module *t){
@@ -113,7 +89,7 @@ void GenSquare::setThreshold(Module *t){
 }
 
 double GenSquare::run(){
-	double cpos = fmod(m_pos, TWO_PI)/(TWO_PI);
+	double cpos = fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI);
 	double data = (cpos < m_thresh->run()) ? -1 : 1;
 	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
 	return data;
@@ -121,7 +97,7 @@ double GenSquare::run(){
 
 //Noise Generator
 double GenNoise::run(){
-	return (((double)rand() - ((double)RAND_MAX/2.0)) / ((double)RAND_MAX/2.0)); 
+	return ((double)rand() / (double)RAND_MAX) - 0.5; 
 }
 
 //value Generator
