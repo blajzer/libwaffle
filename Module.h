@@ -40,8 +40,8 @@ public:
 	virtual void reset() { m_dirtyCache = true; }
 	virtual double getValue() {
 		if(m_dirtyCache) {
-			m_cachedValue = run();
 			m_dirtyCache = false;
+			m_cachedValue = run();
 		}
 		return m_cachedValue;
 	}
