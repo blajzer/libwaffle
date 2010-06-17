@@ -173,14 +173,14 @@ void Waffle::stop(){
 void Waffle::run(jack_nframes_t nframes){
 	//get jack output port buffer
 	jack_default_audio_sample_t *out;
-    out = (jack_default_audio_sample_t *)jack_port_get_buffer(m_jackPort, nframes);
+	out = (jack_default_audio_sample_t *)jack_port_get_buffer(m_jackPort, nframes);
     
 	int nchan = m_patches.size();
 	for(int b=0; b < nframes; ++b){
 		double mixdown = 0.0;
 		if(!m_silent){
 			for(std::list<Module *>::iterator i=m_patches.begin(); i != m_patches.end(); ++i){
-				mixdown += (*i)->run();
+				mixdown += (*i)->getValue();
 			}
 			
 			//normalization method
@@ -203,5 +203,11 @@ void Waffle::run(jack_nframes_t nframes){
 		}
 		//put into the stream
 		out[b] = (jack_default_audio_sample_t)mixdown;
+
+		//reset patches
+		for(std::list<Module *>::iterator i=m_patches.begin(); i != m_patches.end(); ++i){
+			(*i)->reset();
+		}
 	}
 }
+

@@ -25,18 +25,30 @@ THE SOFTWARE.
 #ifndef _WAFFLE_MODULE_H_
 #define _WAFFLE_MODULE_H_
 
+#include <iostream>
+
 namespace waffle {
 
 //base module class
 class Module {
 public:
-	Module(){};
+	Module() : m_cachedValue(0.0), m_dirtyCache(true){};
 	virtual ~Module(){};
 
 	virtual double run()=0;
 	virtual bool isValid()=0;
-protected:
+	virtual void reset() { m_dirtyCache = true; }
+	virtual double getValue() {
+		if(m_dirtyCache) {
+			m_cachedValue = run();
+			m_dirtyCache = false;
+		}
+		return m_cachedValue;
+	}
 
+protected:
+	double m_cachedValue;
+	bool m_dirtyCache;
 };
 
 }

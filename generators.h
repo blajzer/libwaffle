@@ -31,13 +31,17 @@ namespace waffle {
 
 class WaveformGenerator : public Module {
 public:
+	virtual ~WaveformGenerator(){};
+
 	void setFreq(Module *f);
 	void setPhase(Module *p);
-	virtual bool isValid(){if(m_freq != NULL && m_phase != NULL) return m_freq->isValid() && m_phase->isValid(); else return false;}
+
+	virtual bool isValid();
+	virtual void reset();
 
 protected:
-	WaveformGenerator() : m_freq(NULL), m_phase(NULL), m_pos(0.0){} //should never be explicitly instantiated
-	WaveformGenerator(Module *f, Module *p) : m_freq(f), m_phase(p), m_pos(0.0){} //should never be explicitly instantiated
+	WaveformGenerator() : Module(), m_freq(NULL), m_phase(NULL), m_pos(0.0) {} //should never be explicitly instantiated
+	WaveformGenerator(Module *f, Module *p) : Module(), m_freq(f), m_phase(p), m_pos(0.0) {} //should never be explicitly instantiated
 
 	Module *m_freq;
 	Module *m_phase;
@@ -98,7 +102,7 @@ public:
 
 class Value : public Module {
 public:
-	Value():m_value(0.0){}
+	Value(): Module(), m_value(0.0){}
 	Value(double v):m_value(v){}
 	virtual double run();
 	virtual bool isValid(){ return true; }

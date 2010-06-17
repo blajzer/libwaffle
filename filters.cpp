@@ -56,6 +56,15 @@ void Filter::setChild(int n, Module *m){
 	}
 }
 
+void Filter::reset() {
+	if(!m_dirtyCache) {
+		for(int i; i < m_children.size(); ++i) {
+			m_children[i]->reset();
+		}
+		m_dirtyCache = true;
+	}
+}
+
 //obligatory ADSR envelope
 Envelope::Envelope(double thresh, double a, double d, double s, double r, Module *t, Module *i):
 m_thresh(thresh), m_attack(a), m_decay(d), m_sustain(s), m_release(r), m_a_c(0), m_d_c(0), m_r_c(0), m_volume(0.0)
@@ -88,9 +97,19 @@ void Envelope::setRelease(double r){
 	m_r_t = (int)(r * Waffle::sampleRate);
 }
 
+void Envelope::reset() {
+	if(!m_dirtyCache) {
+		for(int i; i < m_children.size(); ++i) {
+			m_children[i]->reset();
+		}
+		m_trig->reset();
+		m_dirtyCache = true;
+	}
+}
+
 double Envelope::run(){
-	double data = m_children[0]->run();
-	double trigger = m_trig->run();
+	double data = m_children[0]->getValue();
+	double trigger = m_trig->getValue();
 
 	switch(m_state){
 		case Envelope::OFF:
@@ -172,11 +191,21 @@ LowPass::LowPass(Module *f, Module *m){
 	m_prev = 0.0;
 }
 
+void LowPass::reset() {
+	if(!m_dirtyCache) {
+		for(int i; i < m_children.size(); ++i) {
+			m_children[i]->reset();
+		}
+		m_freq->reset();
+		m_dirtyCache = true;
+	}
+}
+
 double LowPass::run(){
-	double rc = 1.0 / (m_freq->run() * TWO_PI);
+	double rc = 1.0 / (m_freq->getValue() * TWO_PI);
 	double dt = 1.0 / Waffle::sampleRate;
 	double alpha = dt / (rc + dt);
-	double v = m_children[0]->run();
+	double v = m_children[0]->getValue();
 	double out =  (alpha * v) + ((1-alpha) * m_prev);
 	m_prev = out;
 	return out;
@@ -200,11 +229,21 @@ HighPass::HighPass(Module *f, Module *m){
 	m_prev = 0.0;
 }
 
+void HighPass::reset() {
+	if(!m_dirtyCache) {
+		for(int i; i < m_children.size(); ++i) {
+			m_children[i]->reset();
+		}
+		m_freq->reset();
+		m_dirtyCache = true;
+	}
+}
+
 double HighPass::run(){
-	double rc = 1.0 / (m_freq->run() * TWO_PI);
+	double rc = 1.0 / (m_freq->getValue() * TWO_PI);
 	double dt = 1.0 / Waffle::sampleRate;
 	double alpha = dt / (rc + dt);
-	double v = m_children[0]->run();
+	double v = m_children[0]->getValue();
 	double out =  (alpha * m_prev) + ((1-alpha) * v);
 	m_prev = out;
 	return out;
@@ -228,7 +267,7 @@ Mult::Mult(Module *m1, Module *m2){
 }
 
 double Mult::run(){
-	return m_children[0]->run() * m_children[1]->run();
+	return m_children[0]->getValue() * m_children[1]->getValue();
 }
 
 //addition filter
@@ -238,7 +277,7 @@ Add::Add(Module *m1, Module *m2){
 }
 
 double Add::run(){
-	return m_children[0]->run() + m_children[1]->run();
+	return m_children[0]->getValue() + m_children[1]->getValue();
 }
 
 //subtraction filter
@@ -248,7 +287,7 @@ Sub::Sub(Module *m1, Module *m2){
 }
 
 double Sub::run(){
-	return m_children[0]->run() - m_children[1]->run();
+	return m_children[0]->getValue() - m_children[1]->getValue();
 }
 
 //absolute value filter
@@ -257,7 +296,7 @@ Abs::Abs(Module *m){
 }
 
 double Abs::run(){
-	return fabs(m_children[0]->run());
+	return fabs(m_children[0]->getValue());
 }
 
 //signal delay filter
@@ -274,19 +313,29 @@ void Delay::setLength(double len){
 	m_queue = std::list<double>(m_length, 0.0);
 }
 
+void Delay::reset() {
+	if(!m_dirtyCache) {
+		for(int i; i < m_children.size(); ++i) {
+			m_children[i]->reset();
+		}
+		m_trig->reset();
+		m_dirtyCache = true;
+	}
+}
+
 double Delay::run(){
-	if(m_trig->run() > m_thresh){
+	if(m_trig->getValue() > m_thresh){
 		if(m_first == true){
 			m_queue = std::list<double>(m_length, 0.0);
 			m_first = false;
 		}
 		double data = m_queue.front();
 		m_queue.pop_front();
-		m_queue.push_back(m_children[0]->run());
+		m_queue.push_back(m_children[0]->getValue());
 		return data;
 	}else{
 		m_first = true;
-		return m_children[0]->run();
+		return m_children[0]->getValue();
 	}
 }
 

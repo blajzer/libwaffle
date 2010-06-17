@@ -36,13 +36,27 @@ void WaveformGenerator::setFreq(Module *f){
 	m_pos = 0.0;
 }
 
+bool WaveformGenerator::isValid() { 
+	if(m_freq != NULL && m_phase != NULL)
+		return m_freq->isValid() && m_phase->isValid();
+	else
+		return false;
+}
+
+void WaveformGenerator::reset() {
+	m_dirtyCache = true;
+	m_freq->reset();
+	m_phase->reset();
+}
+
 //Sine Wave Generator
 GenSine::GenSine(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenSine::run(){
-	double data = sin(m_pos + m_phase->run());
-	m_pos += TWO_PI * ((m_freq->run())/Waffle::sampleRate);
+	double data = sin(m_pos + m_phase->getValue());
+	m_pos += TWO_PI * ((m_freq->getValue())/Waffle::sampleRate);
+	m_pos = fmod(m_pos, TWO_PI);
 
 	return data;
 }
@@ -52,9 +66,9 @@ GenTriangle::GenTriangle(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenTriangle::run(){
-	double cpos = fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI);
+	double cpos = fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI);
 	double data = (cpos < 0.5) ? cpos : (1 - cpos);
-	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
+	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
 	return (4*data)-1;
 }
@@ -64,8 +78,9 @@ GenSawtooth::GenSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenSawtooth::run(){
-	double data = (2*fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI))-1;
-	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
+	double data = (2*fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI))-1;
+	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
+	m_pos = fmod(m_pos, TWO_PI);
 	return data;
 }
 
@@ -74,8 +89,9 @@ GenRevSawtooth::GenRevSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenRevSawtooth::run(){
-	double data = (2*(1 - fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI))-1);
-	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
+	double data = (2*(1 - fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI))-1);
+	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
+	m_pos = fmod(m_pos, TWO_PI);
 	return data;
 }
 
@@ -89,9 +105,10 @@ void GenSquare::setThreshold(Module *t){
 }
 
 double GenSquare::run(){
-	double cpos = fmod(m_pos + m_phase->run(), TWO_PI)/(TWO_PI);
-	double data = (cpos < m_thresh->run()) ? -1 : 1;
-	m_pos += TWO_PI * (m_freq->run())/Waffle::sampleRate;
+	double cpos = fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI);
+	double data = (cpos < m_thresh->getValue()) ? -1 : 1;
+	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
+	m_pos = fmod(m_pos, TWO_PI);
 	return data;
 }
 
@@ -108,3 +125,4 @@ double Value::run(){
 void Value::setValue(double v){
 	m_value = v;
 }
+

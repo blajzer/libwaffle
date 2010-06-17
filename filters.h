@@ -39,6 +39,7 @@ public:
 	virtual bool isValid();
 	virtual Module *getChild(int n);
 	virtual void setChild(int n, Module *m);
+	virtual void reset();
 	
 protected:
 	std::vector<Module *> m_children;
@@ -51,6 +52,8 @@ public:
 	virtual double run();
 	virtual bool isValid();
 	void setFreq(Module *f);
+
+	virtual void reset();
 	
 private:
 	Module *m_freq;
@@ -64,6 +67,8 @@ public:
 	virtual double run();
 	virtual bool isValid();
 	void setFreq(Module *f);
+
+	virtual void reset();
 	
 private:
 	Module *m_freq;
@@ -80,6 +85,8 @@ public:
 	void setLength(double len);
 	void setThreshold(double t){m_thresh = t;}
 	void setTrigger(Module *t){m_trig = t;}
+
+	virtual void reset();
 
 private:
 	double m_thresh;
@@ -129,6 +136,8 @@ public:
 	void retrigger();
 	virtual double run();
 	virtual bool isValid(){if(Filter::isValid() && m_trig != NULL) return m_trig->isValid(); else return false;}
+
+	virtual void reset();
 
 private:
 	Module *m_trig;
