@@ -24,5 +24,5 @@ libwaffle : Lightweight, simple, modular JACK synth in C++
  Using the API:
  ==============
   1. Get a pointer to Waffle with Waffle::get(). It's a singleton and will instantiate itself (connecting to JACK in the meantime).
-  2. Make up some modules into a patch (see example). If the exact same varying module (pointer) is used more than one patch, expect problems due to multiple updates.
+  2. Make up some modules into a patch (see example). Cycles will cause problems. The patch should be a DAG.
   3. Add the patch using waffle's add() method, then call waffle's start() method.

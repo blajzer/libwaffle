@@ -54,7 +54,7 @@ GenSine::GenSine(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenSine::run(){
-	double data = sin(m_pos + m_phase->getValue());
+	double data = sin(m_pos + (m_phase->getValue() * PI));
 	m_pos += TWO_PI * ((m_freq->getValue())/Waffle::sampleRate);
 	m_pos = fmod(m_pos, TWO_PI);
 
@@ -66,7 +66,7 @@ GenTriangle::GenTriangle(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenTriangle::run(){
-	double cpos = fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI);
+	double cpos = fmod(m_pos + (m_phase->getValue() * PI), TWO_PI)/(TWO_PI);
 	double data = (cpos < 0.5) ? cpos : (1 - cpos);
 	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
@@ -78,7 +78,7 @@ GenSawtooth::GenSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenSawtooth::run(){
-	double data = (2*fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI))-1;
+	double data = (2*fmod(m_pos + (m_phase->getValue() * PI), TWO_PI)/(TWO_PI))-1;
 	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
 	return data;
@@ -89,7 +89,7 @@ GenRevSawtooth::GenRevSawtooth(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
 
 double GenRevSawtooth::run(){
-	double data = (2*(1 - fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI))-1);
+	double data = (2*(1 - fmod(m_pos + (m_phase->getValue() * PI), TWO_PI)/(TWO_PI))-1);
 	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
 	return data;
@@ -105,7 +105,7 @@ void GenSquare::setThreshold(Module *t){
 }
 
 double GenSquare::run(){
-	double cpos = fmod(m_pos + m_phase->getValue(), TWO_PI)/(TWO_PI);
+	double cpos = fmod(m_pos + (m_phase->getValue() * PI), TWO_PI)/(TWO_PI);
 	double data = (cpos < m_thresh->getValue()) ? -1 : 1;
 	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
