@@ -140,8 +140,18 @@ public:
 	virtual void reset();
 
 private:
+
+	enum EnvelopeState
+	{
+		OFF,
+		ATTACK,
+		DECAY,
+		SUSTAIN,
+		RELEASE
+	};
+
 	Module *m_trig;
-	int m_state;
+	EnvelopeState m_state;
 	double m_thresh;
 	double m_attack;
 	double m_decay;
@@ -151,11 +161,6 @@ private:
 	int m_a_t; int m_a_c;
 	int m_d_t; int m_d_c;
 	int m_r_t; int m_r_c;
-	static const int OFF = 0;
-	static const int ATTACK = 1;
-	static const int DECAY = 2;
-	static const int SUSTAIN = 3;
-	static const int RELEASE = 4;
 };
 
 }
