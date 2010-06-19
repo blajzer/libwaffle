@@ -54,15 +54,15 @@ public:
 	void start(const std::string &name);
 	void stop(const std::string &name);
 	
+	static float sampleRate;
+	static int bufferSize;
+
+private:
 	//jack callbacks
 	static int samplerate_callback(jack_nframes_t nframes, void *arg);
 	static int buffersize_callback(jack_nframes_t nframes, void *arg);
 	static int process_callback(jack_nframes_t nframes, void *arg);
-	
-	static float sampleRate;
-	static int bufferSize;
-	
-private:
+
 	void run(jack_nframes_t nframes);
 
 	class Patch
