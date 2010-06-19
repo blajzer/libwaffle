@@ -58,10 +58,10 @@ void Filter::setChild(int n, Module *m){
 
 void Filter::reset() {
 	if(!m_dirtyCache) {
+		m_dirtyCache = true;
 		for(int i; i < m_children.size(); ++i) {
 			m_children[i]->reset();
 		}
-		m_dirtyCache = true;
 	}
 }
 
@@ -99,11 +99,11 @@ void Envelope::setRelease(double r){
 
 void Envelope::reset() {
 	if(!m_dirtyCache) {
+		m_dirtyCache = true;
 		for(int i; i < m_children.size(); ++i) {
 			m_children[i]->reset();
 		}
 		m_trig->reset();
-		m_dirtyCache = true;
 	}
 }
 
@@ -193,11 +193,11 @@ LowPass::LowPass(Module *f, Module *m){
 
 void LowPass::reset() {
 	if(!m_dirtyCache) {
+		m_dirtyCache = true;
 		for(int i; i < m_children.size(); ++i) {
 			m_children[i]->reset();
 		}
 		m_freq->reset();
-		m_dirtyCache = true;
 	}
 }
 
@@ -231,11 +231,11 @@ HighPass::HighPass(Module *f, Module *m){
 
 void HighPass::reset() {
 	if(!m_dirtyCache) {
+		m_dirtyCache = true;
 		for(int i; i < m_children.size(); ++i) {
 			m_children[i]->reset();
 		}
 		m_freq->reset();
-		m_dirtyCache = true;
 	}
 }
 
@@ -315,11 +315,11 @@ void Delay::setLength(double len){
 
 void Delay::reset() {
 	if(!m_dirtyCache) {
+		m_dirtyCache = true;
 		for(int i; i < m_children.size(); ++i) {
 			m_children[i]->reset();
 		}
 		m_trig->reset();
-		m_dirtyCache = true;
 	}
 }
 

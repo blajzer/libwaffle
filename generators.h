@@ -104,7 +104,8 @@ class Value : public Module {
 public:
 	Value(): Module(), m_value(0.0){}
 	Value(double v):m_value(v){}
-	virtual double run();
+	virtual double run(){};
+	virtual double getValue();
 	virtual bool isValid(){ return true; }
 	void setValue(double v);
 	

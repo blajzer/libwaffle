@@ -44,9 +44,12 @@ bool WaveformGenerator::isValid() {
 }
 
 void WaveformGenerator::reset() {
-	m_dirtyCache = true;
-	m_freq->reset();
-	m_phase->reset();
+	if(!m_dirtyCache)
+	{
+		m_dirtyCache = true;
+		m_freq->reset();
+		m_phase->reset();
+	}
 }
 
 //Sine Wave Generator
@@ -118,7 +121,7 @@ double GenNoise::run(){
 }
 
 //value Generator
-double Value::run(){
+double Value::getValue(){
 	return m_value;
 }
 
