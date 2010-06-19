@@ -29,9 +29,8 @@ THE SOFTWARE.
 #include "generators.h"
 #include "filters.h"
 
-#include <list>
-#include <vector>
-#include <utility>
+#include <map>
+#include <string>
 #include <jack/jack.h>
 #include <jack/types.h>
 
@@ -41,50 +40,44 @@ namespace waffle {
 //the actual synth
 class Waffle {
 public:
-	enum NormalizationMethod {
-		NORM_CLIP=0,
-		NORM_ABSOLUTE,
-		NORM_RELATIVE,
-		NUM_NORMALIZATION_METHODS
-	};
+	Waffle(const std::string &name = "waffle");
+	~Waffle();
 	
-	static Waffle *get();
 	static double midiToFreq(int note);
 	
 	//patch management
-	int addPatch(Module *m);
-	void setPatch(int n, Module *m);
-	bool removePatch(Module *m);
-	bool removePatch(int n);
-	std::list< std::pair<Module *, bool> > validatePatches();
+	void addPatch(const std::string &name, Module *m);
+	void setPatch(const std::string &name, Module *m);
+	bool removePatch(const std::string &name);
+	std::map< std::string, bool > validatePatches();
 	
-	void setNormMethod(NormalizationMethod n);
-	
-	void start();
-	void stop();
-	
-	void run(jack_nframes_t nframes);
+	void start(const std::string &name);
+	void stop(const std::string &name);
 	
 	//jack callbacks
 	static int samplerate_callback(jack_nframes_t nframes, void *arg);
 	static int buffersize_callback(jack_nframes_t nframes, void *arg);
 	static int process_callback(jack_nframes_t nframes, void *arg);
 	
-	~Waffle();
-	
 	static float sampleRate;
 	static int bufferSize;
 	
 private:
-	Waffle();
-	
-	std::list<Module *> m_patches;
-	static Waffle *m_singleton;
-	int m_norm;
+	void run(jack_nframes_t nframes);
+
+	class Patch
+	{
+	public:
+		Patch(Module *m) : module(m), jackPort(NULL), silent(true){}
+		
+		Module *module;
+		jack_port_t *jackPort;
+		bool silent;
+	};
+
+	std::map<std::string, Patch *> m_patches;
 	
 	jack_client_t *m_jackClient;
-	jack_port_t *m_jackPort;
-	bool m_silent;
 };
 
 }

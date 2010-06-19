@@ -33,70 +33,71 @@ using namespace waffle;
 float Waffle::sampleRate;
 int Waffle::bufferSize;
 
-Waffle *Waffle::m_singleton = NULL;
-
-Waffle::Waffle(){
+Waffle::Waffle(const std::string &name){
 	//connect to jack
 	jack_status_t jack_status;
-	if(!(m_jackClient = jack_client_open("waffle",JackNoStartServer,&jack_status))){
+	if(!(m_jackClient = jack_client_open(name.c_str(),JackNoStartServer,&jack_status))){
 		std::cerr << "Jack Error: Failed to connect client" << std::endl;
-		exit(1);
-	}
-	
-	//register an output port
-	if(!(m_jackPort = jack_port_register(m_jackClient,"out",JACK_DEFAULT_AUDIO_TYPE,JackPortIsOutput,0))){
-		std::cerr << "Jack Error: Failed to register port" << std::endl;
 		exit(1);
 	}
 	
 	//register callbacks
 	jack_set_sample_rate_callback(m_jackClient, Waffle::samplerate_callback, NULL);
 	jack_set_buffer_size_callback(m_jackClient, Waffle::buffersize_callback, NULL);
-	jack_set_process_callback(m_jackClient, Waffle::process_callback, NULL);
+	jack_set_process_callback(m_jackClient, Waffle::process_callback, this);
 	
 	srand(time(NULL));
 	
 	Waffle::sampleRate = (float)jack_get_sample_rate(m_jackClient);
 	Waffle::bufferSize = jack_get_buffer_size(m_jackClient);
 	
-	m_norm = Waffle::NORM_CLIP;
-	m_silent = true;
-	
 	jack_activate(m_jackClient);
 }
 
 Waffle::~Waffle(){
-	jack_port_unregister(m_jackClient, m_jackPort);
+	std::map<std::string, Patch *>::iterator it = m_patches.begin();
+	std::map<std::string, Patch *>::iterator end_cached = m_patches.end();
+	for(; it != end_cached; ++it) {
+		jack_port_unregister(m_jackClient, it->second->jackPort);
+		delete it->second;
+	}
+	m_patches.clear();
+
 	jack_client_close(m_jackClient);
 }
 
-Waffle *Waffle::get(){
-	if(m_singleton != NULL)
-		return m_singleton;
-	else
-		return m_singleton = new Waffle();
-}
+void Waffle::addPatch(const std::string &name, Module *m){
+	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
+	if(it == m_patches.end()) {
+		Patch *p = new Patch(m);
 
-int Waffle::addPatch(Module *m){
-	m_patches.push_back(m);
-	return m_patches.size()-1;
-}
-
-void Waffle::setPatch(int n, Module *m){
-	if(n < m_patches.size() && n > -1){
-		std::list<Module *>::iterator it = m_patches.begin();
-		while(n > 0){
-			++it;
-			--n;
+		//register an output port
+		if(!(p->jackPort = jack_port_register(m_jackClient,name.c_str(),JACK_DEFAULT_AUDIO_TYPE,JackPortIsOutput,0))){
+			std::cerr << "Jack Error: Failed to register port: " << name << std::endl;
+			exit(1);
 		}
-			
-		(*it) = m;
+
+		m_patches[name] = p;
+	} else {
+		std::cerr << "Patch already exists for name \"" << name << "\", replacing." << std::endl;
+		it->second->module = m;
 	}
 }
 
-bool Waffle::removePatch(Module *m){
-	std::list<Module *>::iterator it = find(m_patches.begin(), m_patches.end(), m);
+void Waffle::setPatch(const std::string &name, Module *m){
+	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
+	if(it != m_patches.end()) {
+		m_patches[name]->module = m;
+	} else {
+		std::cerr << "Patch with name \"" << name << "\" does not exist." << std::endl;
+	}
+}
+
+bool Waffle::removePatch(const std::string &name){
+	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
 	if(it != m_patches.end()){
+		jack_port_unregister(m_jackClient, it->second->jackPort);
+		delete it->second;
 		m_patches.erase(it);
 		return true;
 	}else{
@@ -104,32 +105,13 @@ bool Waffle::removePatch(Module *m){
 	}
 }
 
-bool Waffle::removePatch(int n){
-	if(n < m_patches.size() && n > -1){
-		std::list<Module *>::iterator it = m_patches.begin();
-		while(n > 0){
-			++it;
-			--n;
-		}
-		m_patches.erase(it);
-		
-		return true;		
-	}else{
-		return false;
-	}
-}
 
-
-std::list< std::pair<Module *, bool> > Waffle::validatePatches() {
-	std::list< std::pair<Module *, bool> > results;
+std::map< std::string, bool > Waffle::validatePatches() {
+	std::map< std::string, bool > results;
 	
-	std::list<Module *>::iterator it = m_patches.begin();
-	for( ; it != m_patches.end(); ++it) {
-		if( (*it)->isValid() )
-			results.push_back( std::make_pair(*it, true) );
-		else
-			results.push_back( std::make_pair(*it, true) );
-	}
+	std::map<std::string, Patch *>::iterator it = m_patches.begin();
+	for( ; it != m_patches.end(); ++it)
+		results[it->first] = it->second->module->isValid();
 
 	return results;
 }
@@ -150,63 +132,48 @@ int Waffle::buffersize_callback(jack_nframes_t nframes, void *arg){
 }
 
 int Waffle::process_callback(jack_nframes_t nframes, void *arg){
-  Waffle::get()->run(nframes);
-  return 0;
+	static_cast<Waffle *>(arg)->run(nframes);
+	return 0;
 }
 
-void Waffle::setNormMethod(NormalizationMethod n){
-	if(n < NORM_CLIP || n > NUM_NORMALIZATION_METHODS){
-		std::cerr << "ERROR: Invalid normalization method" << std::endl;
-		exit(1);
+void Waffle::start(const std::string &name){
+	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
+	if(it != m_patches.end()){
+		it->second->silent = false;
 	}
-	m_norm = n;
 }
 
-void Waffle::start(){
-	m_silent = false;
-}
-
-void Waffle::stop(){
-	m_silent = true;
+void Waffle::stop(const std::string &name){
+	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
+	if(it != m_patches.end()){
+		it->second->silent = true;
+	}
 }
 
 void Waffle::run(jack_nframes_t nframes){
-	//get jack output port buffer
-	jack_default_audio_sample_t *out;
-	out = (jack_default_audio_sample_t *)jack_port_get_buffer(m_jackPort, nframes);
-    
-	int nchan = m_patches.size();
-	for(int b=0; b < nframes; ++b){
-		double mixdown = 0.0;
-		if(!m_silent){
-			for(std::list<Module *>::iterator i=m_patches.begin(); i != m_patches.end(); ++i){
-				mixdown += (*i)->getValue();
-			}
-			
-			//normalization method
-			switch(m_norm){
-				case Waffle::NORM_CLIP: //clipping, doesn't normalize
-					break;
-				case Waffle::NORM_RELATIVE:
-					if(mixdown != 0)
-						mixdown /= ceil(fabs(mixdown)); // relative normalization
-					break;
-				case Waffle::NORM_ABSOLUTE:
-					if(nchan != 0)
-						mixdown /= nchan; //absolute normalization
-					break;
-				default:
-					break;
-			}
-			if(mixdown < -1.0f) mixdown = -1.0f;
-			if(mixdown > 1.0f) mixdown = 1.0f;
-		}
-		//put into the stream
-		out[b] = (jack_default_audio_sample_t)mixdown;
+	std::map<std::string, Patch *>::iterator it = m_patches.begin();
+	std::map<std::string, Patch *>::iterator end_cached = m_patches.end();
+	for(; it != end_cached; ++it) {
+		//get jack output port buffer
+		jack_default_audio_sample_t *out;
+		out = (jack_default_audio_sample_t *)jack_port_get_buffer(it->second->jackPort, nframes);
 
-		//reset patches
-		for(std::list<Module *>::iterator i=m_patches.begin(); i != m_patches.end(); ++i){
-			(*i)->reset();
+		Module *m = it->second->module;
+		bool silent = it->second->silent;
+		for(int b=0; b < nframes; ++b){
+			double result = 0.0; 
+			if(!silent){
+				result = m->getValue();
+		
+				//Clip the audio
+				if(result < -1.0f) result = -1.0f;
+				if(result > 1.0f) result = 1.0f;
+			}
+			//put into the stream
+			out[b] = (jack_default_audio_sample_t)result;
+
+			//reset patch
+			m->reset();
 		}
 	}
 }

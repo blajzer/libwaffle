@@ -27,7 +27,7 @@ THE SOFTWARE.
 using namespace waffle;
 
 int main(int argc, char *argv[]){
-	Waffle *w = Waffle::get();
+	Waffle *w = new Waffle();
 	
 	Module *g = new Add(new GenSine(new Value(440.0), new Value(0.0)),
 						new GenSquare(new Add(new Mult(new GenSine(new Value(0.5), new Value(0.0)),
@@ -44,13 +44,14 @@ int main(int argc, char *argv[]){
 		std::cout << "looks good!" << std::endl;
 	}
 
-	w->addPatch(m);
-	w->start();
+	w->addPatch("testPatch", m);
+	w->start("testPatch");
 	sleep(1);
 	v->setValue(1);
 	sleep(20);
 	v->setValue(0);
 	sleep(2);
+	delete w;
 	return 0;
 }
 
