@@ -7,6 +7,7 @@ libwaffle : Lightweight, simple, modular JACK synth in C++
  Requirements:
  =============
   * jack >= 0.116.1
+  * liblo (some new version)
   * make
   * POSIX system (for the example)
 

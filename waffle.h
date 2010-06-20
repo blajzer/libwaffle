@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "Module.h"
 #include "generators.h"
 #include "filters.h"
+#include "osc.h"
 
 #include <map>
 #include <string>

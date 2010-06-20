@@ -1,9 +1,9 @@
 CXXFLAGS=-O3 -march=native
-LDFLAGS=-pthread -ljack -lm
+LDFLAGS=-pthread -ljack -lm -llo
 
 all: waffle example
 
-OBJS=waffle.o generators.o filters.o
+OBJS=waffle.o generators.o filters.o osc.o
 
 waffle: ${OBJS}
 	g++ -shared -o libwaffle.so ${OBJS} ${CXXFLAGS} ${LDFLAGS}
