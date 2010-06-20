@@ -21,6 +21,7 @@ THE SOFTWARE.
 */
 
 #include "osc.h"
+#include "waffle.h"
 
 #include <iostream>
 #include <sstream>
@@ -30,7 +31,7 @@ using namespace waffle;
 lo_server_thread OSCModule::ms_pServerThread = NULL;
 unsigned int OSCModule::ms_portNum = 7770;
 
-OSCModule::OSCModule() : m_lock(PTHREAD_MUTEX_INITIALIZER) {
+OSCModule::OSCModule() {
 	pthread_mutex_init(&m_lock, NULL);
 }
 
@@ -52,20 +53,19 @@ void OSCModule::errorHandler(int num, const char *msg, const char *path) {
 	std::cerr << "OSC error " << num << " in path " << path << ": " << msg << std::endl;
 }
 
-OSCTrigger::OSCTrigger(const std::string &path) : m_trigger(false) {
+OSCTrigger::OSCTrigger(const std::string &path) : OSCModule(), m_trigger(false) {
 	lo_server_thread_add_method(getServerThread(), path.c_str(), "", OSCTrigger::oscCallback, this);
 }
 	
 double OSCTrigger::run() {
+	double result = 0.0;
 	pthread_mutex_lock(&m_lock);
 	if(m_trigger) {
 		m_trigger = false;
-		pthread_mutex_unlock(&m_lock);
-		return 1.0;
-	} else {
-		pthread_mutex_unlock(&m_lock);
-		return 0.0;
+		result = 1.0;
 	}
+	pthread_mutex_unlock(&m_lock);
+	return result;
 }
 
 int OSCTrigger::oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data) {
@@ -79,7 +79,34 @@ void OSCTrigger::trigger() {
 	pthread_mutex_unlock(&m_lock);
 }
 
-OSCValue::OSCValue(const std::string &path) : m_value(0.0) {
+
+OSCTimedTrigger::OSCTimedTrigger(const std::string &path) : OSCModule(), m_timer(0) {
+	lo_server_thread_add_method(getServerThread(), path.c_str(), "f", OSCTimedTrigger::oscCallback, this);
+}
+	
+double OSCTimedTrigger::run() {
+	double result = 0.0;
+	pthread_mutex_lock(&m_lock);
+	if(m_timer) {
+		--m_timer;
+		result = 1.0;
+	}
+	pthread_mutex_unlock(&m_lock);
+	return result;
+}
+
+void OSCTimedTrigger::trigger(float time) {
+	pthread_mutex_lock(&m_lock);
+	m_timer = (int)(time * Waffle::sampleRate);
+	pthread_mutex_unlock(&m_lock);
+}
+	
+int OSCTimedTrigger::oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data) {
+	static_cast<OSCTimedTrigger *>(user_data)->trigger(argv[0]->f);
+	return 0;
+}
+
+OSCValue::OSCValue(const std::string &path) : OSCModule(), m_value(0.0) {
 	lo_server_thread_add_method(getServerThread(), path.c_str(), "f", OSCValue::oscCallback, this);
 }
 	

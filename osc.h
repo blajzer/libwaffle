@@ -63,6 +63,20 @@ private:
 	bool m_trigger;
 };
 
+//! OSC trigger that stays high for an amount of time
+class OSCTimedTrigger : public OSCModule {
+public:
+	OSCTimedTrigger(const std::string &path);
+	
+	double run();
+	bool isValid() { return true; }
+private:
+	void trigger(float time);
+	
+	static int oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data);
+	int m_timer;
+};
+
 //! OSC Value
 class OSCValue : public OSCModule {
 public:

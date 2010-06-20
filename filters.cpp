@@ -122,7 +122,7 @@ double Envelope::run(){
 			}	
 			break;
 		case Envelope::ATTACK:		
-			m_a_c++;
+			++m_a_c;
 			if(m_a_c > m_a_t){
 				m_state = Envelope::DECAY;
 				m_d_c = 0;
@@ -137,7 +137,7 @@ double Envelope::run(){
 			}
 			break;
 		case Envelope::DECAY:
-			m_d_c++;
+			++m_d_c;
 			if(m_d_c > m_d_t){
 				m_state = Envelope::SUSTAIN;
 				m_volume = m_sustain;
@@ -161,7 +161,7 @@ double Envelope::run(){
 			}
 			break;
 		case Envelope::RELEASE:
-			m_r_c++;
+			++m_r_c;
 			if(m_r_c > m_r_t){
 				m_volume = 0.0;
 				m_state = Envelope::OFF;
