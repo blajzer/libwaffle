@@ -28,13 +28,21 @@ THE SOFTWARE.
 using namespace waffle;
 
 lo_server_thread OSCModule::ms_pServerThread = NULL;
-unsigned int OSCModule::ms_portNum = 9999;
-	
+unsigned int OSCModule::ms_portNum = 7770;
+
+OSCModule::OSCModule() : m_lock(PTHREAD_MUTEX_INITIALIZER) {
+	pthread_mutex_init(&m_lock, NULL);
+}
+
+OSCModule::~OSCModule() {
+	pthread_mutex_destroy(&m_lock);
+}
+
 lo_server_thread OSCModule::getServerThread() {
 	if(!ms_pServerThread) {
 		std::stringstream s;
 		s << ms_portNum;
-		ms_pServerThread = lo_server_thread_new(s.str().c_str(), OSCModule::errorHandler);
+		ms_pServerThread = lo_server_thread_new_with_proto(s.str().c_str(), LO_UDP, OSCModule::errorHandler);
 		lo_server_thread_start(ms_pServerThread);
 	}
 	return ms_pServerThread;
@@ -49,16 +57,26 @@ OSCTrigger::OSCTrigger(const std::string &path) : m_trigger(false) {
 }
 	
 double OSCTrigger::run() {
+	pthread_mutex_lock(&m_lock);
 	if(m_trigger) {
 		m_trigger = false;
+		pthread_mutex_unlock(&m_lock);
 		return 1.0;
 	} else {
+		pthread_mutex_unlock(&m_lock);
 		return 0.0;
 	}
 }
 
 int OSCTrigger::oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data) {
-	static_cast<OSCTrigger *>(user_data)->m_trigger = true;
+	static_cast<OSCTrigger *>(user_data)->trigger();
+	return 0;
+}
+
+void OSCTrigger::trigger() {
+	pthread_mutex_lock(&m_lock);
+	m_trigger = true;
+	pthread_mutex_unlock(&m_lock);
 }
 
 OSCValue::OSCValue(const std::string &path) : m_value(0.0) {
@@ -66,6 +84,20 @@ OSCValue::OSCValue(const std::string &path) : m_value(0.0) {
 }
 	
 int OSCValue::oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data) {
-	static_cast<OSCValue *>(user_data)->m_value = argv[0]->f;
+	static_cast<OSCValue *>(user_data)->setValue(argv[0]->f);
+	return 0;
+}
+
+void OSCValue::setValue(double v) {
+	pthread_mutex_lock(&m_lock);
+	m_value = v;
+	pthread_mutex_unlock(&m_lock);
+}
+
+double OSCValue::getValue() {
+	pthread_mutex_lock(&m_lock);
+	double val = m_value;
+	pthread_mutex_unlock(&m_lock);
+	return val;
 }
 

@@ -26,18 +26,21 @@ THE SOFTWARE.
 #include "Module.h"
 
 #include <lo/lo.h>
+#include <pthread.h>
 
 namespace waffle {
 
 //! Base for all OSC modules
 class OSCModule : public Module {
 public:
-	OSCModule(){}
+	OSCModule();
+	virtual ~OSCModule();
 	
 	static void setPort(unsigned int portNum) { ms_portNum = portNum; }
 	
 protected:
 	lo_server_thread getServerThread();
+	pthread_mutex_t m_lock;
 
 private:
 	static void errorHandler(int num, const char *msg, const char *path);
@@ -54,6 +57,8 @@ public:
 	double run();
 	bool isValid() { return true; }
 private:
+	void trigger();
+	
 	static int oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data);
 	bool m_trigger;
 };
@@ -64,9 +69,11 @@ public:
 	OSCValue(const std::string &path);
 	
 	double run(){};
-	double getValue() { return m_value; }
+	double getValue();
 	bool isValid() { return true; }
 private:
+	void setValue(double v);
+	
 	static int oscCallback(const char *path, const char *types, lo_arg **argv, int argc, lo_message  msg, void *user_data);
 	double m_value;
 };
