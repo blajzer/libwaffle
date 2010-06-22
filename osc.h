@@ -37,9 +37,8 @@ public:
 	virtual ~OSCModule();
 	
 	static void setPort(unsigned int portNum) { ms_portNum = portNum; }
-	
+	static lo_server_thread getServerThread();
 protected:
-	lo_server_thread getServerThread();
 	pthread_mutex_t m_lock;
 
 private:
