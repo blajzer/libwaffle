@@ -56,6 +56,10 @@ void Filter::setChild(int n, Module *m){
 	}
 }
 
+void Filter::addChild(Module *m){
+	m_children.push_back(m);
+}
+
 void Filter::reset() {
 	if(!m_dirtyCache) {
 		m_dirtyCache = true;
@@ -267,7 +271,11 @@ Mult::Mult(Module *m1, Module *m2){
 }
 
 double Mult::run(){
-	return m_children[0]->getValue() * m_children[1]->getValue();
+	double result = 1.0;
+	for(int i = 0, len = m_children.size(); i < len; ++i)
+		result *= m_children[i]->getValue();
+
+	return result;
 }
 
 //addition filter
@@ -277,7 +285,11 @@ Add::Add(Module *m1, Module *m2){
 }
 
 double Add::run(){
-	return m_children[0]->getValue() + m_children[1]->getValue();
+	double result = 0.0;
+	for(int i = 0, len = m_children.size(); i < len; ++i)
+		result += m_children[i]->getValue();
+
+	return result;
 }
 
 //subtraction filter

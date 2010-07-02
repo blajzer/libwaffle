@@ -37,9 +37,11 @@ public:
 	Filter(){}
 	virtual double run() = 0;
 	virtual bool isValid();
-	virtual Module *getChild(int n);
-	virtual void setChild(int n, Module *m);
 	virtual void reset();
+
+	Module *getChild(int n);
+	void setChild(int n, Module *m);
+	void addChild(Module *m);
 	
 protected:
 	std::vector<Module *> m_children;
