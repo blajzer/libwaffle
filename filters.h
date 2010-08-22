@@ -38,6 +38,8 @@ public:
 	virtual double run() = 0;
 	virtual bool isValid();
 	virtual void reset();
+	
+	virtual void gatherSubModules(std::set<Module *> &modules);
 
 	Module *getChild(int n);
 	void setChild(int n, Module *m);
@@ -53,6 +55,7 @@ public:
 	LowPass(Module *f, Module *m);
 	virtual double run();
 	virtual bool isValid();
+	virtual void gatherSubModules(std::set<Module *> &modules);
 	void setFreq(Module *f);
 
 	virtual void reset();
@@ -68,6 +71,7 @@ public:
 	HighPass(Module *f, Module *m);
 	virtual double run();
 	virtual bool isValid();
+	virtual void gatherSubModules(std::set<Module *> &modules);
 	void setFreq(Module *f);
 
 	virtual void reset();
@@ -84,6 +88,7 @@ public:
 	
 	virtual double run();
 	virtual bool isValid();
+	virtual void gatherSubModules(std::set<Module *> &modules);
 	void setLength(double len);
 	void setThreshold(double t){m_thresh = t;}
 	void setTrigger(Module *t){m_trig = t;}
@@ -136,6 +141,7 @@ public:
 	void setSustain(double s);
 	void setRelease(double r);
 	void retrigger();
+	virtual void gatherSubModules(std::set<Module *> &modules);
 	virtual double run();
 	virtual bool isValid(){if(Filter::isValid() && m_trig != NULL) return m_trig->isValid(); else return false;}
 

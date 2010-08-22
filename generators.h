@@ -38,7 +38,9 @@ public:
 
 	virtual bool isValid();
 	virtual void reset();
-
+	
+	virtual void gatherSubModules(std::set<Module *> &modules);
+	
 protected:
 	WaveformGenerator() : Module(), m_freq(NULL), m_phase(NULL), m_pos(0.0) {} //should never be explicitly instantiated
 	WaveformGenerator(Module *f, Module *p) : Module(), m_freq(f), m_phase(p), m_pos(0.0) {} //should never be explicitly instantiated
@@ -89,6 +91,8 @@ public:
 		else
 			return false;
 	}
+	
+	virtual void gatherSubModules(std::set<Module *> &modules);
 
 protected:
 	Module *m_thresh;
@@ -98,15 +102,18 @@ class GenNoise : public Module {
 public:	
 	virtual double run();
 	virtual bool isValid(){ return true; }
+	
+	virtual void gatherSubModules(std::set<Module *> &modules) { }
 };
 
 class Value : public Module {
 public:
-	Value(): Module(), m_value(0.0){}
-	Value(double v):m_value(v){}
-	virtual double run(){};
+	Value() : Module(), m_value(0.0) {}
+	Value(double v) : Module(), m_value(v) {}
+	virtual double run(){}
 	virtual double getValue();
 	virtual bool isValid(){ return true; }
+	virtual void gatherSubModules(std::set<Module *> &modules) { }
 	void setValue(double v);
 	
 protected:

@@ -69,6 +69,14 @@ void Filter::reset() {
 	}
 }
 
+void Filter::gatherSubModules(std::set<Module *> &modules) {
+	for(int i = 0; i < m_children.size(); ++i) {
+		Module *pChild = m_children[i];
+		pChild->gatherSubModules(modules);
+		modules.insert(pChild);
+	}
+}
+
 //obligatory ADSR envelope
 Envelope::Envelope(double thresh, double a, double d, double s, double r, Module *t, Module *i):
 m_thresh(thresh), m_attack(a), m_decay(d), m_sustain(s), m_release(r), m_a_c(0), m_d_c(0), m_r_c(0), m_volume(0.0)
@@ -188,6 +196,12 @@ void Envelope::retrigger(){
 	m_a_c = 0;
 }
 
+void Envelope::gatherSubModules(std::set<Module *> &modules) {
+	Filter::gatherSubModules(modules);
+	modules.insert(m_trig);
+	m_trig->gatherSubModules(modules);
+}
+
 //lowpass filter
 LowPass::LowPass(Module *f, Module *m){
 	m_freq = f;
@@ -226,6 +240,12 @@ void LowPass::setFreq(Module *f){
 	m_freq = f;
 }
 
+void LowPass::gatherSubModules(std::set<Module *> &modules) {
+	Filter::gatherSubModules(modules);
+	modules.insert(m_freq);
+	m_freq->gatherSubModules(modules);
+}
+
 //highpass filter
 HighPass::HighPass(Module *f, Module *m){
 	m_freq = f;
@@ -262,6 +282,12 @@ bool HighPass::isValid(){
 
 void HighPass::setFreq(Module *f){
 	m_freq = f;
+}
+
+void HighPass::gatherSubModules(std::set<Module *> &modules) {
+	Filter::gatherSubModules(modules);
+	modules.insert(m_freq);
+	m_freq->gatherSubModules(modules);
 }
 
 //multiplication filter
@@ -357,3 +383,10 @@ bool Delay::isValid(){
 	else
 		return false;
 }
+
+void Delay::gatherSubModules(std::set<Module *> &modules) {
+	Filter::gatherSubModules(modules);
+	modules.insert(m_trig);
+	m_trig->gatherSubModules(modules);
+}
+

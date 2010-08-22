@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <string>
 #include <jack/jack.h>
 #include <jack/types.h>
+#include <pthread.h>
 
 namespace waffle {
 
@@ -70,6 +71,7 @@ private:
 	{
 	public:
 		Patch(Module *m) : module(m), jackPort(NULL), silent(true){}
+		~Patch();
 		
 		Module *module;
 		jack_port_t *jackPort;
@@ -79,6 +81,7 @@ private:
 	std::map<std::string, Patch *> m_patches;
 	
 	jack_client_t *m_jackClient;
+	pthread_mutex_t m_lock;
 };
 
 }

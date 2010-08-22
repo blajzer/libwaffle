@@ -34,6 +34,8 @@ float Waffle::sampleRate;
 int Waffle::bufferSize;
 
 Waffle::Waffle(const std::string &name){
+	pthread_mutex_init(&m_lock, NULL);
+	
 	//connect to jack
 	jack_status_t jack_status;
 	if(!(m_jackClient = jack_client_open(name.c_str(),JackNoStartServer,&jack_status))){
@@ -55,6 +57,7 @@ Waffle::Waffle(const std::string &name){
 }
 
 Waffle::~Waffle(){
+	pthread_mutex_lock(&m_lock);
 	std::map<std::string, Patch *>::iterator it = m_patches.begin();
 	std::map<std::string, Patch *>::iterator end_cached = m_patches.end();
 	for(; it != end_cached; ++it) {
@@ -62,6 +65,9 @@ Waffle::~Waffle(){
 		delete it->second;
 	}
 	m_patches.clear();
+	pthread_mutex_unlock(&m_lock);
+		
+	pthread_mutex_destroy(&m_lock);
 
 	jack_client_close(m_jackClient);
 }
@@ -151,6 +157,8 @@ void Waffle::stop(const std::string &name){
 }
 
 void Waffle::run(jack_nframes_t nframes){
+	pthread_mutex_lock(&m_lock);
+	
 	std::map<std::string, Patch *>::iterator it = m_patches.begin();
 	std::map<std::string, Patch *>::iterator end_cached = m_patches.end();
 	for(; it != end_cached; ++it) {
@@ -175,6 +183,20 @@ void Waffle::run(jack_nframes_t nframes){
 			//reset patch
 			m->reset();
 		}
+	}
+	pthread_mutex_unlock(&m_lock);
+}
+
+Waffle::Patch::~Patch() {
+	std::set<Module *> modules;
+	modules.insert(module);
+	module->gatherSubModules(modules);
+	
+	std::set<Module *>::iterator it = modules.begin();
+	std::set<Module *>::iterator endCached = modules.end();
+	for( ; it != endCached; ++it) {
+		std::cout << *it << std::endl;
+		delete (*it);
 	}
 }
 

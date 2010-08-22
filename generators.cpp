@@ -52,6 +52,14 @@ void WaveformGenerator::reset() {
 	}
 }
 
+void WaveformGenerator::gatherSubModules(std::set<Module *> &modules) {
+	modules.insert(m_freq);
+	modules.insert(m_phase);
+		
+	m_freq->gatherSubModules(modules);
+	m_phase->gatherSubModules(modules);
+}
+
 //Sine Wave Generator
 GenSine::GenSine(Module *f, Module *p) : WaveformGenerator(f, p) {
 }
@@ -113,6 +121,13 @@ double GenSquare::run(){
 	m_pos += TWO_PI * (m_freq->getValue())/Waffle::sampleRate;
 	m_pos = fmod(m_pos, TWO_PI);
 	return data;
+}
+
+void GenSquare::gatherSubModules(std::set<Module *> &modules) {
+	WaveformGenerator::gatherSubModules(modules);
+	
+	modules.insert(m_thresh);
+	m_thresh->gatherSubModules(modules);
 }
 
 //Noise Generator

@@ -36,6 +36,8 @@ public:
 	OSCModule();
 	virtual ~OSCModule();
 	
+	virtual void gatherSubModules(std::set<Module *> &modules) {}
+	
 	static void setPort(unsigned int portNum) { ms_portNum = portNum; }
 	static lo_server_thread getServerThread();
 protected:

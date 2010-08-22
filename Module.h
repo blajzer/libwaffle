@@ -26,6 +26,7 @@ THE SOFTWARE.
 #define _WAFFLE_MODULE_H_
 
 #include <iostream>
+#include <set>
 
 namespace waffle {
 
@@ -45,6 +46,9 @@ public:
 		}
 		return m_cachedValue;
 	}
+	
+	//TODO: profile and optimize this
+	virtual void gatherSubModules(std::set<Module *> &modules) = 0;
 
 protected:
 	double m_cachedValue;
