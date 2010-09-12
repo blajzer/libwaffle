@@ -1,5 +1,3 @@
-//Waffle,
-// a crappy modular Synth
 /*
 Copyright (c) 2009-2010 Brett Lajzer
 
@@ -22,57 +20,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#ifndef _WAFFLE_H_
-#define _WAFFLE_H_
-
-#include "Module.h"
-#include "generators.h"
-#include "filters.h"
 #include "patch.h"
-#include "osc.h"
 
-#include <map>
-#include <string>
-#include <jack/jack.h>
-#include <jack/types.h>
-#include <pthread.h>
+using namespace waffle;
 
-namespace waffle {
-
-
-//the actual synth
-class Waffle {
-public:
-	Waffle(const std::string &name = "waffle");
-	~Waffle();
+Patch::~Patch() {
+	std::set<Module *> modules;
+	modules.insert(m_module);
+	m_module->gatherSubModules(modules);
 	
-	static double midiToFreq(int note);
-	
-	//patch management
-	void addPatch(const std::string &name, Patch *p);
-	bool deletePatch(const std::string &name);
-	std::map< std::string, bool > validatePatches();
-	
-	void start(const std::string &name);
-	void stop(const std::string &name);
-	
-	static float sampleRate;
-	static int bufferSize;
-
-private:
-	//jack callbacks
-	static int samplerate_callback(jack_nframes_t nframes, void *arg);
-	static int buffersize_callback(jack_nframes_t nframes, void *arg);
-	static int process_callback(jack_nframes_t nframes, void *arg);
-
-	void run(jack_nframes_t nframes);
-
-	std::map<std::string, Patch *> m_patches;
-	
-	jack_client_t *m_jackClient;
-	pthread_mutex_t m_lock;
-};
-
+	std::set<Module *>::iterator it = modules.begin();
+	std::set<Module *>::iterator endCached = modules.end();
+	for( ; it != endCached; ++it) {
+		std::cout << *it << std::endl;
+		delete (*it);
+	}
 }
 
-#endif
+void Patch::setPlaying(bool playing) {
+	m_silent = !playing;
+}
+

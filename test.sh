@@ -1,2 +1,2 @@
 #!/bin/bash
-LD_LIBRARY_PATH="." ./lw-example
+LD_LIBRARY_PATH="." valgrind ./lw-example

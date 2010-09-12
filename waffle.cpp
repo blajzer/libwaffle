@@ -61,7 +61,7 @@ Waffle::~Waffle(){
 	std::map<std::string, Patch *>::iterator it = m_patches.begin();
 	std::map<std::string, Patch *>::iterator end_cached = m_patches.end();
 	for(; it != end_cached; ++it) {
-		jack_port_unregister(m_jackClient, it->second->jackPort);
+		jack_port_unregister(m_jackClient, it->second->m_jackPort);
 		delete it->second;
 	}
 	m_patches.clear();
@@ -72,13 +72,11 @@ Waffle::~Waffle(){
 	jack_client_close(m_jackClient);
 }
 
-void Waffle::addPatch(const std::string &name, Module *m){
+void Waffle::addPatch(const std::string &name, Patch *p){
 	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
 	if(it == m_patches.end()) {
-		Patch *p = new Patch(m);
-
 		//register an output port
-		if(!(p->jackPort = jack_port_register(m_jackClient,name.c_str(),JACK_DEFAULT_AUDIO_TYPE,JackPortIsOutput,0))){
+		if(!(p->m_jackPort = jack_port_register(m_jackClient,name.c_str(),JACK_DEFAULT_AUDIO_TYPE,JackPortIsOutput,0))){
 			std::cerr << "Jack Error: Failed to register port: " << name << std::endl;
 			exit(1);
 		}
@@ -86,23 +84,14 @@ void Waffle::addPatch(const std::string &name, Module *m){
 		m_patches[name] = p;
 	} else {
 		std::cerr << "Patch already exists for name \"" << name << "\", replacing." << std::endl;
-		it->second->module = m;
+		it->second = p;
 	}
 }
 
-void Waffle::setPatch(const std::string &name, Module *m){
-	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
-	if(it != m_patches.end()) {
-		m_patches[name]->module = m;
-	} else {
-		std::cerr << "Patch with name \"" << name << "\" does not exist." << std::endl;
-	}
-}
-
-bool Waffle::removePatch(const std::string &name){
+bool Waffle::deletePatch(const std::string &name){
 	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
 	if(it != m_patches.end()){
-		jack_port_unregister(m_jackClient, it->second->jackPort);
+		jack_port_unregister(m_jackClient, it->second->m_jackPort);
 		delete it->second;
 		m_patches.erase(it);
 		return true;
@@ -117,7 +106,7 @@ std::map< std::string, bool > Waffle::validatePatches() {
 	
 	std::map<std::string, Patch *>::iterator it = m_patches.begin();
 	for( ; it != m_patches.end(); ++it)
-		results[it->first] = it->second->module->isValid();
+		results[it->first] = it->second->m_module->isValid();
 
 	return results;
 }
@@ -145,14 +134,14 @@ int Waffle::process_callback(jack_nframes_t nframes, void *arg){
 void Waffle::start(const std::string &name){
 	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
 	if(it != m_patches.end()){
-		it->second->silent = false;
+		it->second->setPlaying(true);
 	}
 }
 
 void Waffle::stop(const std::string &name){
 	std::map<std::string, Patch *>::iterator it = m_patches.find(name);
 	if(it != m_patches.end()){
-		it->second->silent = true;
+		it->second->setPlaying(false);
 	}
 }
 
@@ -164,10 +153,10 @@ void Waffle::run(jack_nframes_t nframes){
 	for(; it != end_cached; ++it) {
 		//get jack output port buffer
 		jack_default_audio_sample_t *out;
-		out = (jack_default_audio_sample_t *)jack_port_get_buffer(it->second->jackPort, nframes);
+		out = (jack_default_audio_sample_t *)jack_port_get_buffer(it->second->m_jackPort, nframes);
 
-		Module *m = it->second->module;
-		bool silent = it->second->silent;
+		Module *m = it->second->m_module;
+		bool silent = it->second->m_silent;
 		for(int b=0; b < nframes; ++b){
 			double result = 0.0; 
 			if(!silent){
@@ -187,16 +176,4 @@ void Waffle::run(jack_nframes_t nframes){
 	pthread_mutex_unlock(&m_lock);
 }
 
-Waffle::Patch::~Patch() {
-	std::set<Module *> modules;
-	modules.insert(module);
-	module->gatherSubModules(modules);
-	
-	std::set<Module *>::iterator it = modules.begin();
-	std::set<Module *>::iterator endCached = modules.end();
-	for( ; it != endCached; ++it) {
-		std::cout << *it << std::endl;
-		delete (*it);
-	}
-}
 

@@ -3,7 +3,7 @@ LDFLAGS=-pthread -ljack -lm -llo
 
 all: waffle example
 
-OBJS=waffle.o generators.o filters.o osc.o
+OBJS=waffle.o generators.o filters.o osc.o patch.o
 
 waffle: ${OBJS}
 	g++ -shared -o libwaffle.so ${OBJS} ${CXXFLAGS} ${LDFLAGS}

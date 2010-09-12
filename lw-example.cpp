@@ -43,8 +43,10 @@ int main(int argc, char *argv[]){
 	}else{
 		std::cout << "looks good!" << std::endl;
 	}
+	
+	Patch *p = new Patch(m);
 
-	w->addPatch("testPatch", m);
+	w->addPatch("testPatch", p);
 	w->start("testPatch");
 	sleep(1);
 	v->setValue(1);
